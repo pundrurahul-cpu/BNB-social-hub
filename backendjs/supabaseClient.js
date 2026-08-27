@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
+const ws = require('ws');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Simplified cleaning: just remove quotes and whitespace
@@ -19,6 +20,10 @@ if (supabaseUrl && supabaseServiceKey) {
   console.log('------------------------------------');
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  realtime: {
+    websocket: ws,
+  },
+});
 
 module.exports = supabase;
