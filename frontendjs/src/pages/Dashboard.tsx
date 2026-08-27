@@ -66,8 +66,8 @@ export function Dashboard({ onNavigate }: { onNavigate: (path: string) => void }
       await refreshPosts();
 
       const [followerRes, overviewRes] = await Promise.all([
-        fetch(`http://localhost:5001/api/analytics/followers`).catch(() => null),
-        fetch(`http://localhost:5001/api/analytics/overview`).catch(() => null)
+        fetch(`http://backendjs.test/api/analytics/followers`).catch(() => null),
+        fetch(`http://backendjs.test/api/analytics/overview`).catch(() => null)
       ]);
 
       if (followerRes?.ok) {

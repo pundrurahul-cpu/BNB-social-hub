@@ -3,7 +3,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const axios = require('axios'); // To talk to FastAPI
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const AI_BRAIN_URL = "http://localhost:8000"; // Your FastAPI URL
+const AI_BRAIN_URL = "http://localhost:8001"; // Your FastAPI URL
 
 // Funnel stages rotation model from your spreadsheet
 const FUNNEL_STAGES = [

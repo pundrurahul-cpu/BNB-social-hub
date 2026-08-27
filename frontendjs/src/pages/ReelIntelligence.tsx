@@ -48,7 +48,7 @@ export function ReelIntelligence() {
     if (!activeClient) return;
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5001/api/reels?client_id=${activeClient.id}`);
+      const response = await fetch(`http://backendjs.test/api/reels?client_id=${activeClient.id}`);
       if (response.ok) {
         const data = await response.json();
         setReels(data);
@@ -69,7 +69,7 @@ export function ReelIntelligence() {
     setIsAdding(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:5001/api/reels', {
+      const response = await fetch('http://backendjs.test/api/reels', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, client_id: activeClient.id })
@@ -93,7 +93,7 @@ export function ReelIntelligence() {
   const handleAnalyze = async (id: string) => {
     setAnalyzingId(id);
     try {
-      const response = await fetch(`http://localhost:5001/api/reels/${id}/analyze`, {
+      const response = await fetch(`http://backendjs.test/api/reels/${id}/analyze`, {
         method: 'POST'
       });
       if (response.ok) {
@@ -109,7 +109,7 @@ export function ReelIntelligence() {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`http://localhost:5001/api/reels/${id}`, {
+      const response = await fetch(`http://backendjs.test/api/reels/${id}`, {
         method: 'DELETE'
       });
       if (response.ok) {

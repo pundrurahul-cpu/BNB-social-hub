@@ -57,8 +57,8 @@ export function Analytics() {
       if (!activeClient) return;
       try {
         const [growthRes, industryRes] = await Promise.all([
-          fetch(`http://localhost:5001/api/analytics/growth-history?client_id=${activeClient.id}`),
-          fetch(`http://localhost:5001/api/analytics/industries`)
+          fetch(`http://backendjs.test/api/analytics/growth-history?client_id=${activeClient.id}`),
+          fetch(`http://backendjs.test/api/analytics/industries`)
         ]);
 
         if (growthRes.ok) setGrowthHistory(await growthRes.json());
@@ -77,7 +77,7 @@ export function Analytics() {
   const handleFetchPerformance = async (postId: string) => {
     setFetchingPerformanceId(postId);
     try {
-      const response = await fetch(`http://localhost:5001/api/analytics/post-performance/${postId}`);
+      const response = await fetch(`http://backendjs.test/api/analytics/post-performance/${postId}`);
       if (response.ok) {
         window.location.reload();
       }
@@ -93,7 +93,7 @@ export function Analytics() {
 
     setIsReplying(true);
     try {
-      const response = await fetch(`http://localhost:5001/api/analytics/auto-reply-all/${postId}`, {
+      const response = await fetch(`http://backendjs.test/api/analytics/auto-reply-all/${postId}`, {
         method: 'POST'
       });
 
@@ -104,7 +104,7 @@ export function Analytics() {
         if (response.ok) {
           alert(`Success! Replied to ${data.successful} comments.`);
           // Refresh comments list
-          const commentsRes = await fetch(`http://localhost:5001/api/analytics/comments/${postId}`);
+          const commentsRes = await fetch(`http://backendjs.test/api/analytics/comments/${postId}`);
           const commentsData = await commentsRes.json();
           setReportComments(commentsData.filter((c: any) => selectedPlatforms.includes(c.platform as Platform)));
         } else {
@@ -129,10 +129,10 @@ export function Analytics() {
 
       setLoadingTrends(true);
       try {
-        let url = `http://localhost:5001/api/analytics/viral-trends/${selectedIndustry}?client_id=${activeClient.id}`;
+        let url = `http://backendjs.test/api/analytics/viral-trends/${selectedIndustry}?client_id=${activeClient.id}`;
 
         if (discoveryMode === 'regional' && region.state && region.district) {
-          url = `http://localhost:5001/api/analytics/viral-trends/regional?country=${region.country}&state=${region.state}&district=${region.district}&industry=${selectedIndustry}&client_id=${activeClient.id}`;
+          url = `http://backendjs.test/api/analytics/viral-trends/regional?country=${region.country}&state=${region.state}&district=${region.district}&industry=${selectedIndustry}&client_id=${activeClient.id}`;
         } else if (discoveryMode === 'regional') {
           // Don't fetch if regional but incomplete
           setLoadingTrends(false);
@@ -174,7 +174,7 @@ export function Analytics() {
 
     setExporting(true);
     try {
-      const response = await fetch(`http://localhost:5001/api/analytics/export?client_id=${activeClient.id}`);
+      const response = await fetch(`http://backendjs.test/api/analytics/export?client_id=${activeClient.id}`);
       if (!response.ok) throw new Error('Export failed');
 
       const blob = await response.blob();
@@ -206,7 +206,7 @@ export function Analytics() {
 
     try {
       // 1. Trigger Analysis
-      const response = await fetch(`http://localhost:5001/api/analytics/analyze-post/${postId}`, {
+      const response = await fetch(`http://backendjs.test/api/analytics/analyze-post/${postId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platforms: selectedPlatforms })
@@ -220,7 +220,7 @@ export function Analytics() {
           setReportComments(data.comments.filter((c: any) => selectedPlatforms.includes(c.platform as Platform)));
         } else {
           // Fallback: Fetch Individual Comments for the report
-          const commentsRes = await fetch(`http://localhost:5001/api/analytics/comments/${postId}`);
+          const commentsRes = await fetch(`http://backendjs.test/api/analytics/comments/${postId}`);
           const commentsData = await commentsRes.json();
           setReportComments(commentsData.filter((c: any) => selectedPlatforms.includes(c.platform as Platform)));
         }
@@ -245,7 +245,7 @@ export function Analytics() {
     setIsGlobalAnalyzing(true);
     setSelectedReport(null);
     try {
-      const response = await fetch('http://localhost:5001/api/analytics/global-analysis', {
+      const response = await fetch('http://backendjs.test/api/analytics/global-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: globalUrl, client_id: activeClient.id })

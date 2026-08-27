@@ -3,7 +3,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const axios = require('axios');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const FASTAPI_URL = "http://localhost:8000"; // Your FastAPI worker URL
+const FASTAPI_URL = "http://localhost:8001"; // Your FastAPI worker URL
 
 // The 12-Post Strategic Rotation from your image
 const STRATEGIC_FUNNEL = [

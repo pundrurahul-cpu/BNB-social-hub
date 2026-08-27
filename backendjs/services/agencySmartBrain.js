@@ -3,7 +3,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const axios = require('axios');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const FASTAPI_URL = "http://localhost:8000";
+const FASTAPI_URL = "http://localhost:8001";
 
 /**
  * Funnel Logic Sequence from your spreadsheet

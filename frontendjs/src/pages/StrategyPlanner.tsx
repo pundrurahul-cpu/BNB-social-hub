@@ -34,7 +34,7 @@ export function StrategyPlanner({ onNavigate }: { onNavigate: (path: string, par
   const fetchPlan = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5001/api/posts?client_id=${activeClient.id}`);
+      const response = await fetch(`http://backendjs.test/api/posts?client_id=${activeClient.id}`);
       if (response.ok) {
         const data = await response.json();
         const strategyPosts = data.filter((p: any) => p.is_placeholder || p.funnel_stage);
@@ -55,7 +55,7 @@ export function StrategyPlanner({ onNavigate }: { onNavigate: (path: string, par
     setIsGenerating(true);
     try {
       const now = new Date();
-      const response = await fetch('http://localhost:5001/api/automation/plan-month', {
+      const response = await fetch('http://backendjs.test/api/automation/plan-month', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -75,7 +75,7 @@ export function StrategyPlanner({ onNavigate }: { onNavigate: (path: string, par
   const handleGenerateVisual = async (postId: string) => {
     setGeneratingVisualId(postId);
     try {
-      const response = await fetch(`http://localhost:5001/api/posts/${postId}/generate-visual`, {
+      const response = await fetch(`http://backendjs.test/api/posts/${postId}/generate-visual`, {
         method: 'POST'
       });
       if (response.ok) {
@@ -94,7 +94,7 @@ export function StrategyPlanner({ onNavigate }: { onNavigate: (path: string, par
   const handleGenerateQuote = async (postId: string) => {
     setGeneratingQuoteId(postId);
     try {
-      const response = await fetch(`http://localhost:5001/api/posts/${postId}/generate-quote-graphic`, {
+      const response = await fetch(`http://backendjs.test/api/posts/${postId}/generate-quote-graphic`, {
         method: 'POST'
       });
       if (response.ok) {

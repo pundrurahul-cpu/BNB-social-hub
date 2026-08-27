@@ -74,7 +74,7 @@ export function Composer({ editingPostId }: ComposerProps) {
   useEffect(() => {
     const fetchConnections = async () => {
       try {
-        const response = await fetch('http://localhost:5001/api/auth/connections');
+        const response = await fetch('http://backendjs.test/api/auth/connections');
         if (response.ok) {
           const data = await response.json();
           setConnections(data);
@@ -195,9 +195,9 @@ export function Composer({ editingPostId }: ComposerProps) {
 
       if (selectedFile) {
         formData.append('image', selectedFile);
-        response = await fetch('http://localhost:5001/api/ai/enhance', { method: 'POST', body: formData });
+        response = await fetch('http://backendjs.test/api/ai/enhance', { method: 'POST', body: formData });
       } else {
-        response = await fetch('http://localhost:5001/api/ai/enhance', {
+        response = await fetch('http://backendjs.test/api/ai/enhance', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image_url: mediaUrl }),

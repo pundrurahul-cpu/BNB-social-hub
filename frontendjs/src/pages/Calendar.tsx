@@ -47,7 +47,7 @@ export function Calendar({ onNavigate }: CalendarProps) {
   const handleTriggerBrain = async () => {
     setIsGenerating(true);
     try {
-      const response = await fetch('http://localhost:5001/api/automation/plan-month', {
+      const response = await fetch('http://backendjs.test/api/automation/plan-month', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

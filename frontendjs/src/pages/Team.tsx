@@ -32,7 +32,7 @@ export function Team() {
 
   const handleConnect = (platform: string, clientId: string) => {
     // Redirect to backend auth routes with client_id
-    window.location.href = `http://localhost:5001/api/auth/${platform}?client_id=${clientId}`;
+    window.location.href = `http://backendjs.test/api/auth/${platform}?client_id=${clientId}`;
   };
 
   const platformsList = [
@@ -46,7 +46,7 @@ export function Team() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5001/api/clients', {
+      const response = await fetch('http://backendjs.test/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -75,7 +75,7 @@ export function Team() {
     }
 
     try {
-      const response = await fetch(`http://localhost:5001/api/clients/${id}`, {
+      const response = await fetch(`http://backendjs.test/api/clients/${id}`, {
         method: 'DELETE'
       });
 

@@ -21,7 +21,7 @@ export function StrategyDashboard() {
   useEffect(() => {
     // Load existing strategy if it exists
     const loadStrategy = async () => {
-      const res = await fetch(`http://localhost:5001/api/automation/settings/${activeClient.id}`);
+      const res = await fetch(`http://backendjs.test/api/automation/settings/${activeClient.id}`);
       if (res.ok) {
         const data = await res.json();
         if (data.client_id) setStrategy(prev => ({ ...prev, ...data }));
@@ -33,7 +33,7 @@ export function StrategyDashboard() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await fetch('http://localhost:5001/api/automation/save', {
+      await fetch('http://backendjs.test/api/automation/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...strategy, client_id: activeClient.id })
@@ -51,7 +51,7 @@ export function StrategyDashboard() {
     setLoading(true);
     try {
       const now = new Date();
-      const res = await fetch('http://localhost:5001/api/automation/smart-strategy', {
+      const res = await fetch('http://backendjs.test/api/automation/smart-strategy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -179,7 +179,7 @@ export function StrategyDashboard() {
                    // Instant Save for Toggle
                    if (activeClient) {
                      try {
-                       await fetch('http://localhost:5001/api/automation/save', {
+                       await fetch('http://backendjs.test/api/automation/save', {
                          method: 'POST',
                          headers: { 'Content-Type': 'application/json' },
                          body: JSON.stringify({

@@ -104,7 +104,7 @@ export function Settings() {
       // Backend Route (Bypasses RLS Policies)
       const { platforms, ...strategyData } = strategy;
 
-      const response = await fetch('http://localhost:5001/api/automation/save', {
+      const response = await fetch('http://backendjs.test/api/automation/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -132,7 +132,7 @@ export function Settings() {
     setMessage(null);
     try {
       const now = new Date();
-      const response = await fetch('http://localhost:5001/api/automation/plan-month', {
+      const response = await fetch('http://backendjs.test/api/automation/plan-month', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -319,7 +319,7 @@ export function Settings() {
                     if (activeClient) {
                       try {
                         const { platforms, ...strategyData } = strategy;
-                        await fetch('http://localhost:5001/api/automation/save', {
+                        await fetch('http://backendjs.test/api/automation/save', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
@@ -429,7 +429,7 @@ export function Settings() {
                 </div>
               </div>
               <button
-                onClick={() => window.location.href = `http://localhost:5001/api/auth/facebook?client_id=${activeClient?.id || ''}`}
+                onClick={() => window.location.href = `http://backendjs.test/api/auth/facebook?client_id=${activeClient?.id || ''}`}
                 className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
                   fbConnections.length > 0
                     ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -458,7 +458,7 @@ export function Settings() {
                 </div>
               </div>
               <button
-                onClick={() => window.location.href = `http://localhost:5001/api/auth/linkedin?client_id=${activeClient?.id || ''}`}
+                onClick={() => window.location.href = `http://backendjs.test/api/auth/linkedin?client_id=${activeClient?.id || ''}`}
                 className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
                   liConnections.length > 0
                     ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'

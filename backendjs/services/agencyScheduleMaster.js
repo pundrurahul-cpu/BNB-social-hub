@@ -3,7 +3,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const axios = require('axios');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const AI_BRAIN_URL = "http://localhost:8000"; // FastAPI Brain
+const AI_BRAIN_URL = "http://localhost:8001"; // FastAPI Brain
 
 /**
  * THE AGENCY FUNNEL BLUEPRINT (Replicated from your spreadsheet)
