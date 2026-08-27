@@ -21,6 +21,12 @@ if (supabaseUrl && supabaseServiceKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    persistSession: false
+  },
+  global: {
+    fetch: (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args)),
+  },
   realtime: {
     websocket: ws,
   },
