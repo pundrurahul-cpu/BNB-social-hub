@@ -1,12 +1,13 @@
+// 1. WebSocket Polyfill (MUST BE FIRST)
+const ws = require('ws');
+global.WebSocket = ws;
+globalThis.WebSocket = ws;
+
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const ws = require('ws');
-
-// Polyfill WebSocket for Node.js < 22 (Required for Supabase)
-global.WebSocket = ws;
-
 require('dotenv').config();
+
 const postRoutes = require('./routes/postRoutes');
 const authRoutes = require('./routes/authRoutes');
 const strategyRoutes = require('./routes/strategyRoutes');
@@ -17,7 +18,7 @@ const scheduler = require('./services/scheduler');
 const supabase = require('./supabaseClient');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Improved CORS: Explicitly allow frontend origins
 app.use(cors({
@@ -57,47 +58,10 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/reels', reelRoutes);
 
-async function checkSystemHealth() {
-  console.log('🔍 Running System Diagnostics...');
-
-  // 1. Check Supabase
-  try {
-    const { error } = await supabase.from('posts').select('id').limit(1);
-    if (error) console.error('❌ Supabase Connection Failed:', error.message);
-    else console.log('✅ Supabase Connection: SECURE');
-  } catch (err) {
-    console.error('❌ Supabase Error:', err.message);
-  }
-
-  // 2. Check Ollama & Models
-  try {
-    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-    console.log(`📡 Checking Local AI (Ollama) at ${ollamaUrl}...`);
-    const response = await axios.get(`${ollamaUrl}/api/tags`).catch(e => {
-        throw new Error(`Connection Refused at ${ollamaUrl}`);
-    });
-
-    if (response.data && response.data.models) {
-        const models = response.data.models.map(m => m.name);
-        console.log(`✅ Local AI (Ollama): ACTIVE`);
-
-        const hasText = models.some(m => m.includes(process.env.OLLAMA_MODEL || 'llama3'));
-        const hasVision = models.some(m => m.includes(process.env.OLLAMA_VISION_MODEL || 'llava'));
-
-        console.log(`   - Text Model (${process.env.OLLAMA_MODEL || 'llama3'}): ${hasText ? 'READY' : 'NOT FOUND'}`);
-        console.log(`   - Vision Model (${process.env.OLLAMA_VISION_MODEL || 'llava'}): ${hasVision ? 'READY' : 'NOT FOUND'}`);
-    }
-  } catch (err) {
-    console.warn('⚠️  Local AI (Ollama): OFFLINE (Expected if not running locally).');
-  }
-}
-
-app.listen(PORT, () => {
-  console.log(`\n***************************************************`);
-  console.log(`🚀 MASTER SERVER V1000.0 - SYSTEM REBOOT COMPLETE`);
-  console.log(`📍 SERVER ACTIVE ON PORT: ${PORT}`);
-  console.log(`⚙️  AI ENGINE: QUAD-FAILOVER (Local-First)`);
-  console.log(`***************************************************\n`);
-  checkSystemHealth();
-  scheduler.start();
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n--- 🚀 BNB MASTER SERVER V1000.1 ---`);
+  console.log(`✅ Status: ACTIVE`);
+  console.log(`✅ Port: ${PORT}`);
+  console.log(`✅ Environment: ${process.env.NODE_ENV || 'production'}`);
+  console.log(`------------------------------------\n`);
 });
