@@ -1,6 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const ws = require('ws');
+
+// Polyfill WebSocket for Node.js < 22 (Required for Supabase)
+global.WebSocket = ws;
+
 require('dotenv').config();
 const postRoutes = require('./routes/postRoutes');
 const authRoutes = require('./routes/authRoutes');
