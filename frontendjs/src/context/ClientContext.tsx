@@ -36,6 +36,10 @@ export function ClientProvider({ children }: { children: ReactNode }) {
             if (prev && data.find((c: any) => c.id === prev.id)) return prev;
             return data[0];
           });
+        } else {
+          console.warn('⚠️ [Clients] API returned empty list.');
+          setClients([]);
+          setActiveClient(null);
         }
       }
     } catch (error: any) {

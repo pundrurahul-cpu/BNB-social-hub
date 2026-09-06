@@ -59,12 +59,32 @@ export function AppLayout({ children, activePath, onNavigate }: AppLayoutProps) 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (userLoading || clientLoading || !activeClient) {
+  if (userLoading || clientLoading) {
     return (
       <div className="flex h-screen w-full bg-slate-50 items-center justify-center">
         <div className="flex flex-col items-center gap-4">
            <Logo className="w-16 h-16 rounded-2xl shadow-xl animate-pulse" />
            <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em]">Synchronizing Workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeClient) {
+    return (
+      <div className="flex h-screen w-full bg-slate-50 items-center justify-center p-8">
+        <div className="max-w-md w-full bg-white rounded-[2rem] p-12 text-center shadow-2xl border border-slate-100">
+           <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-indigo-600">
+              <Users className="w-10 h-10" />
+           </div>
+           <h2 className="text-2xl font-black text-slate-900 mb-2">No Clients Found</h2>
+           <p className="text-slate-500 text-sm mb-8 leading-relaxed font-medium">Your workspace is connected, but we couldn't find any brand profiles in your database. Please create a client to continue.</p>
+           <button
+             onClick={() => onNavigate('team')}
+             className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-indigo-600 transition-all shadow-xl shadow-indigo-100"
+           >
+             Go to Client Management
+           </button>
         </div>
       </div>
     );
