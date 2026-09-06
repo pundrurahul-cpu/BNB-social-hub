@@ -26,7 +26,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
     console.log('📦 [Clients] Fetching clients from API...');
     try {
       setLoading(true);
-      const response = await fetch('http://backendjs.test/api/clients');
+      const response = await fetch('http://103.155.85.64:5001/api/clients');
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0) {
