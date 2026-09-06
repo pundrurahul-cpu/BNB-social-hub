@@ -111,57 +111,64 @@ async function buildMonthlyStrategy(clientId, month, year) {
 }
 
 /**
- * BACKGROUND WORKER: Fills the specific placeholder IDs
+ * BACKGROUND WORKER: Optimized for SPEED (Batch Processing)
  */
 async function fillStrategicContentInBackground(clientId, strategy, placeholders) {
-  console.log(`🧠 [AI Background Worker] Starting to fill ${placeholders.length} posts for Client ${clientId}...`);
+  console.log(`🧠 [AI Background Worker] Speed Mode: Processing ${placeholders.length} posts for Client ${clientId}...`);
 
-  for (let i = 0; i < placeholders.length; i++) {
-    const placeholder = placeholders[i];
+  // Process in batches of 3 for 3x faster generation
+  const batchSize = 3;
 
-    try {
-      const { data: post } = await supabase.from('posts')
-        .select('id, metadata, funnel_stage, scheduled_at')
-        .eq('id', placeholder.id)
-        .single();
+  for (let i = 0; i < placeholders.length; i += batchSize) {
+    const currentBatch = placeholders.slice(i, i + batchSize);
+    console.log(`⚡ [AI] Processing batch ${Math.floor(i/batchSize) + 1}...`);
 
-      if (!post || post.metadata?.status === 'completed') continue;
+    await Promise.all(currentBatch.map(async (placeholder, index) => {
+      try {
+        const { data: post } = await supabase.from('posts')
+          .select('id, metadata, funnel_stage, scheduled_at')
+          .eq('id', placeholder.id)
+          .single();
 
-      // Map back to the blueprint
-      const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
-      const dateStr = post.scheduled_at.split('T')[0];
+        if (!post || post.metadata?.status === 'completed') return;
 
-      const { data: historyData } = await supabase.from('posts').select('topic').eq('client_id', String(clientId)).limit(50);
-      const pastTopics = (historyData || []).map(h => h.topic).filter(t => t && !t.includes('ARCHITECTING'));
+        // Correctly calculate the blueprint index based on the overall loop index
+        const blueprintIndex = (i + index) % FUNNEL_BLUEPRINT.length;
+        const blueprint = FUNNEL_BLUEPRINT[blueprintIndex];
 
-      console.log(`🤖 [Background] Generating content for Post #${i + 1} (${dateStr})...`);
-      const content = await generateMarketExpertContent(strategy, blueprint, "Growth Pillar Post", pastTopics);
+        const { data: historyData } = await supabase.from('posts')
+          .select('topic')
+          .eq('client_id', String(clientId))
+          .limit(50);
+        const pastTopics = (historyData || []).map(h => h.topic).filter(t => t && !t.includes('ARCHITECTING'));
 
-      await supabase.from('posts').update({
-        post_type: content.post_type || 'Static',
-        topic: content.topic,
-        copy_direction: content.copy_direction,
-        visual_idea: content.visual_idea,
-        content: content.caption,
-        metadata: {
-          ...post.metadata,
-          alternative_angles: content.alternative_angles,
-          engine: content.engine,
-          expert_rationale: content.expert_rationale,
-          status: 'completed'
-        }
-      }).eq('id', post.id);
+        const content = await generateMarketExpertContent(strategy, blueprint, "Growth Pillar Post", pastTopics);
 
-      console.log(`✅ [Background] Post #${i + 1} (${dateStr}) updated successfully.`);
+        await supabase.from('posts').update({
+          post_type: content.post_type || 'Static',
+          topic: content.topic,
+          copy_direction: content.copy_direction,
+          visual_idea: content.visual_idea,
+          content: content.caption,
+          metadata: {
+            ...post.metadata,
+            alternative_angles: content.alternative_angles,
+            engine: content.engine,
+            expert_rationale: content.expert_rationale,
+            status: 'completed'
+          }
+        }).eq('id', post.id);
 
-      // Delay to respect API limits
-      await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log(`✅ [AI] Generated content for ID: ${post.id.substring(0,8)}`);
+      } catch (err) {
+        console.error(`❌ [Batch Error]:`, err.message);
+      }
+    }));
 
-    } catch (err) {
-      console.error(`❌ [Background Worker] Error on placeholder ${placeholder.id}:`, err.message);
-    }
+    // Small break between batches to prevent API 429 errors
+    await new Promise(resolve => setTimeout(resolve, 1500));
   }
-  console.log(`🏁 [AI Background Worker] Finished filling roadmap for Client ${clientId}.`);
+  console.log(`🏁 [AI Background Worker] Finished roadmap for Client ${clientId}.`);
 }
 
 async function generateMarketExpertContent(strategy, blueprint, context, pastTopics) {
