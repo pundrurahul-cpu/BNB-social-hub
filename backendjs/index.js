@@ -23,7 +23,7 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 
 app.use(cors({
-  origin: '*', // Allow all during high-load AI generation to prevent CORS blocks on timeouts
+  origin: ['http://103.155.85.64:5173', 'http://localhost:5173'],
   credentials: true
 }));
 

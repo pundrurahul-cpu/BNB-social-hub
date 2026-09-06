@@ -13,7 +13,16 @@ const geminiKey = cleanKey(process.env.GEMINI_API_KEY);
 const openAIKey = cleanKey(process.env.OPENAI_API_KEY);
 
 const genAI = geminiKey ? new GoogleGenerativeAI(geminiKey) : null;
-const openai = openAIKey ? new OpenAI({ apiKey: openAIKey }) : null;
+
+// Safer OpenAI initialization for various versions
+let openai = null;
+if (openAIKey) {
+  try {
+    openai = new OpenAI({ apiKey: openAIKey });
+  } catch (e) {
+    console.warn("⚠️ OpenAI init failed (might be an older version):", e.message);
+  }
+}
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
