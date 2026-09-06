@@ -84,19 +84,29 @@ async function buildMonthlyStrategy(clientId, month, year) {
       });
     }
 
+    let insertedData = [];
     if (placeholders.length > 0) {
-      const { error: bulkError } = await supabase.from('posts').insert(placeholders);
-      if (bulkError) console.error("❌ Placeholder Bulk Insert Failed:", bulkError.message);
+      const { data, error: bulkError } = await supabase.from('posts').insert(placeholders).select('id, scheduled_at');
+      if (bulkError) {
+        console.error("❌ Placeholder Bulk Insert Failed:", bulkError.message);
+      } else {
+        insertedData = data || [];
+      }
     }
 
     // 2. RESPOND TO CLIENT IMMEDIATELY
-    // This stops the "Failed to Fetch" / 504 Timeout error.
-    const result = { success: true, count: placeholders.length, message: "Roadmap created. AI is filling details in background." };
+    const result = {
+      success: true,
+      count: placeholders.length,
+      message: "Roadmap created. AI is filling details in background."
+    };
 
-    // 3. TRIGGER BACKGROUND FILLER (Don't 'await' this)
-    process.nextTick(() => {
-      fillStrategicContentInBackground(clientId, strategy, plannedDates);
-    });
+    // 3. TRIGGER BACKGROUND FILLER with the exact IDs we just created
+    if (insertedData.length > 0) {
+      setImmediate(() => {
+        fillStrategicContentInBackground(clientId, strategy, insertedData);
+      });
+    }
 
     return result;
   } catch (err) {
@@ -106,38 +116,39 @@ async function buildMonthlyStrategy(clientId, month, year) {
 }
 
 /**
- * BACKGROUND WORKER: Fills the placeholders one by one or in small batches
- * This prevents rate limits (429) and timeouts.
+ * BACKGROUND WORKER: Fills the specific placeholder IDs
  */
-async function fillStrategicContentInBackground(clientId, strategy, plannedDates) {
-  console.log(`🧠 [AI Background Worker] Starting to fill ${plannedDates.length} posts for Client ${clientId}...`);
+async function fillStrategicContentInBackground(clientId, strategy, placeholders) {
+  console.log(`🧠 [AI Background Worker] Starting to fill ${placeholders.length} posts for Client ${clientId}...`);
 
-  for (let i = 0; i < plannedDates.length; i++) {
-    const slot = plannedDates[i];
-    const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
-
-    let time = strategy.preferred_time || '10:00';
-    if (time.split(':').length === 2) time += ':00';
-    const scheduledAt = `${slot.date}T${time}Z`;
+  for (let i = 0; i < placeholders.length; i++) {
+    const placeholder = placeholders[i];
 
     try {
-      // Find the placeholder we just created
+      // 1. Get the current state of this specific post
       const { data: post } = await supabase.from('posts')
-        .select('id, metadata')
-        .eq('client_id', String(clientId))
-        .eq('scheduled_at', scheduledAt)
-        .eq('is_placeholder', true)
-        .maybeSingle();
+        .select('id, metadata, funnel_stage, scheduled_at')
+        .eq('id', placeholder.id)
+        .single();
 
       if (!post || post.metadata?.status === 'completed') continue;
 
-      const { data: historyData } = await supabase.from('posts').select('topic').eq('client_id', String(clientId)).limit(50);
+      // 2. Map back to the blueprint for the prompt
+      const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
+      const dateStr = post.scheduled_at.split('T')[0];
+
+      // 3. Fetch history for uniqueness (excluding architecting labels)
+      const { data: historyData } = await supabase.from('posts')
+        .select('topic')
+        .eq('client_id', String(clientId))
+        .limit(50);
       const pastTopics = (historyData || []).map(h => h.topic).filter(t => t && !t.includes('ARCHITECTING'));
 
-      console.log(`🤖 [Background] Generating content for Post #${i + 1} (${slot.date})...`);
-      const content = await generateMarketExpertContent(strategy, blueprint, slot.reason, pastTopics);
+      console.log(`🤖 [Background] Generating content for Post #${i + 1} (${dateStr})...`);
+      const content = await generateMarketExpertContent(strategy, blueprint, "Growth Pillar Post", pastTopics);
 
-      await supabase.from('posts').update({
+      // 4. Update with real content
+      const { error: updateError } = await supabase.from('posts').update({
         post_type: content.post_type || 'Static',
         topic: content.topic,
         copy_direction: content.copy_direction,
@@ -152,13 +163,15 @@ async function fillStrategicContentInBackground(clientId, strategy, plannedDates
         }
       }).eq('id', post.id);
 
-      console.log(`✅ [Background] Post #${i + 1} filled.`);
+      if (updateError) throw updateError;
+      console.log(`✅ [Background] Post #${i + 1} (${dateStr}) updated successfully.`);
 
-      // Small pause to be gentle on the AI API
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Delay to respect API limits
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
     } catch (err) {
-      console.error(`❌ [Background Worker] Failed on Post #${i + 1}:`, err.message);
+      console.error(`❌ [Background Worker] Error on placeholder ${placeholder.id}:`, err.message);
+      // Optional: Mark as failed so we don't keep retrying or to show error in UI
     }
   }
   console.log(`🏁 [AI Background Worker] Finished filling roadmap for Client ${clientId}.`);
