@@ -4,8 +4,19 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env'), override: true });
 
 /**
+ * GLOBAL STRATEGIC BLUEPRINT
+ * Moved to top-level so both the Main Brain and Background Worker can access it.
+ */
+const FUNNEL_BLUEPRINT = [
+  { stage: 'Awareness', goal: 'Pattern Interrupt & Brand Recall', framework: 'Curiosity Loop' },
+  { stage: 'Interest', goal: 'Concept Clarity & Logic-Based Value', framework: 'PAS (Problem/Agitate/Solve)' },
+  { stage: 'Trust', goal: 'Social Proof & Expert Validation', framework: 'Evidence/Proof' },
+  { stage: 'Consideration', goal: 'UVP Contrast & Differentiation', framework: 'Benefit-Stacking' },
+  { stage: 'Conversion', goal: 'Direct High-Intent CTA & Urgency', framework: 'AIDA (Direct Action)' }
+];
+
+/**
  * STRATEGIC BRAIN V1000.11 - MARKET EXPERT EDITION
- * Senior Performance Marketing Logic | Aligned with BNB Spreadsheet Components.
  */
 async function buildMonthlyStrategy(clientId, month, year) {
   console.log(`\n🧠 [V1000 Market Expert] Architecting high-converting roadmap for Client: ${clientId}`);
@@ -28,15 +39,6 @@ async function buildMonthlyStrategy(clientId, month, year) {
       .gte('occasion_date', `${year}-${mm}-01`)
       .lte('occasion_date', `${year}-${mm}-${daysInMonth}`);
 
-    // EXPERT FUNNEL LOGIC
-    const FUNNEL_BLUEPRINT = [
-      { stage: 'Awareness', goal: 'Pattern Interrupt & Brand Recall', framework: 'Curiosity Loop' },
-      { stage: 'Interest', goal: 'Concept Clarity & Logic-Based Value', framework: 'PAS (Problem/Agitate/Solve)' },
-      { stage: 'Trust', goal: 'Social Proof & Expert Validation', framework: 'Evidence/Proof' },
-      { stage: 'Consideration', goal: 'UVP Contrast & Differentiation', framework: 'Benefit-Stacking' },
-      { stage: 'Conversion', goal: 'Direct High-Intent CTA & Urgency', framework: 'AIDA (Direct Action)' }
-    ];
-
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${mm}-${String(d).padStart(2, '0')}`;
       const dayOfWeek = new Date(`${dateStr}T12:00:00Z`).getUTCDay();
@@ -52,7 +54,7 @@ async function buildMonthlyStrategy(clientId, month, year) {
 
     console.log(`📅 Mapping ${plannedDates.length} Expert Posts...`);
 
-    // 1. CREATE ALL PLACEHOLDERS IMMEDIATELY (To prevent 504 Timeout)
+    // 1. CREATE ALL PLACEHOLDERS IMMEDIATELY
     const placeholders = [];
     for (let i = 0; i < plannedDates.length; i++) {
       const slot = plannedDates[i];
@@ -73,7 +75,7 @@ async function buildMonthlyStrategy(clientId, month, year) {
         scheduled_at: scheduledAt,
         platforms: strategy.platforms || ['facebook', 'instagram'],
         funnel_stage: blueprint.stage,
-        post_type: 'Static', // Default
+        post_type: 'Static',
         topic: 'STRATEGIC AI ARCHITECTING...',
         copy_direction: 'AI is currently analyzing market data for this slot...',
         visual_idea: 'Generating visual concept...',
@@ -87,21 +89,14 @@ async function buildMonthlyStrategy(clientId, month, year) {
     let insertedData = [];
     if (placeholders.length > 0) {
       const { data, error: bulkError } = await supabase.from('posts').insert(placeholders).select('id, scheduled_at');
-      if (bulkError) {
-        console.error("❌ Placeholder Bulk Insert Failed:", bulkError.message);
-      } else {
-        insertedData = data || [];
-      }
+      if (bulkError) console.error("❌ Placeholder Bulk Insert Failed:", bulkError.message);
+      else insertedData = data || [];
     }
 
     // 2. RESPOND TO CLIENT IMMEDIATELY
-    const result = {
-      success: true,
-      count: placeholders.length,
-      message: "Roadmap created. AI is filling details in background."
-    };
+    const result = { success: true, count: placeholders.length, message: "Roadmap created. AI is filling details in background." };
 
-    // 3. TRIGGER BACKGROUND FILLER with the exact IDs we just created
+    // 3. TRIGGER BACKGROUND FILLER (Ensuring it starts AFTER the response)
     if (insertedData.length > 0) {
       setImmediate(() => {
         fillStrategicContentInBackground(clientId, strategy, insertedData);
@@ -125,7 +120,6 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
     const placeholder = placeholders[i];
 
     try {
-      // 1. Get the current state of this specific post
       const { data: post } = await supabase.from('posts')
         .select('id, metadata, funnel_stage, scheduled_at')
         .eq('id', placeholder.id)
@@ -133,22 +127,17 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
 
       if (!post || post.metadata?.status === 'completed') continue;
 
-      // 2. Map back to the blueprint for the prompt
+      // Map back to the blueprint
       const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
       const dateStr = post.scheduled_at.split('T')[0];
 
-      // 3. Fetch history for uniqueness (excluding architecting labels)
-      const { data: historyData } = await supabase.from('posts')
-        .select('topic')
-        .eq('client_id', String(clientId))
-        .limit(50);
+      const { data: historyData } = await supabase.from('posts').select('topic').eq('client_id', String(clientId)).limit(50);
       const pastTopics = (historyData || []).map(h => h.topic).filter(t => t && !t.includes('ARCHITECTING'));
 
       console.log(`🤖 [Background] Generating content for Post #${i + 1} (${dateStr})...`);
       const content = await generateMarketExpertContent(strategy, blueprint, "Growth Pillar Post", pastTopics);
 
-      // 4. Update with real content
-      const { error: updateError } = await supabase.from('posts').update({
+      await supabase.from('posts').update({
         post_type: content.post_type || 'Static',
         topic: content.topic,
         copy_direction: content.copy_direction,
@@ -163,7 +152,6 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
         }
       }).eq('id', post.id);
 
-      if (updateError) throw updateError;
       console.log(`✅ [Background] Post #${i + 1} (${dateStr}) updated successfully.`);
 
       // Delay to respect API limits
@@ -171,7 +159,6 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
 
     } catch (err) {
       console.error(`❌ [Background Worker] Error on placeholder ${placeholder.id}:`, err.message);
-      // Optional: Mark as failed so we don't keep retrying or to show error in UI
     }
   }
   console.log(`🏁 [AI Background Worker] Finished filling roadmap for Client ${clientId}.`);
@@ -188,28 +175,22 @@ async function generateMarketExpertContent(strategy, blueprint, context, pastTop
     Framework: ${blueprint.framework}.
     Additional Context: ${context}.
 
-    YOUR MISSION:
-    Think outside the box. Avoid clichés. Be provocative, emotional, and highly unique.
-    You are writing for a high-end audience that hates generic marketing.
-
-    CRITICAL: YOU MUST BE 100% UNIQUE. DO NOT REPEAT THESE TOPICS: ${historyString}
-
     TASK:
     1. post_type: "Static Image" or "Reel".
-    2. topic: A viral-worthy headline that uses psychological triggers (Curiosity, Empathy, or Paradox).
-    3. copy_direction: Give the creator 3 specific 'Hooks' to use in the first 3 seconds, and a unique 'Angle' for the storytelling.
-    4. visual_idea: Describe a cinematic visual concept (lighting, camera angle, and mood) like a film director would.
-    5. caption: Write the full social media copy. It must be engaging, use storytelling, and end with a 'Low-Friction' call to action.
-    6. expert_rationale: Explain the behavioral psychology behind why this specific post will stop the scroll.
+    2. topic: A viral-worthy headline.
+    3. copy_direction: Give 3 Hooks and a Storytelling Angle.
+    4. visual_idea: Describe a cinematic visual concept.
+    5. caption: Write the full social media copy with CTA.
+    6. expert_rationale: Psychological trigger explanation.
 
     Output ONLY valid JSON:
     {
       "post_type": "Static | Reel",
       "topic": "Unique Viral Headline",
-      "copy_direction": "3 Specific Hooks and a Storytelling Angle...",
-      "visual_idea": "Cinematic art direction and mood...",
-      "caption": "Full high-converting storytelling copy...",
-      "expert_rationale": "Psychological trigger explanation...",
+      "copy_direction": "Hooks and Angle...",
+      "visual_idea": "Cinematic description...",
+      "caption": "Full copy...",
+      "expert_rationale": "Psychology...",
       "alternative_angles": ["Angle 1", "Angle 2", "Angle 3"]
     }
   `;
@@ -221,10 +202,10 @@ async function generateMarketExpertContent(strategy, blueprint, context, pastTop
     console.error("❌ Cloud Generation Failed, using Emergency Fallback:", err.message);
     return {
       post_type: "Static",
-      topic: "Brand Performance Post",
+      topic: "Strategic Brand Update",
       copy_direction: "Standard brand authority and reach.",
       visual_idea: "Clean, professional branding visual.",
-      caption: "Something great is coming. Stay tuned!",
+      caption: "Something great is coming. Stay tuned for our latest insights!",
       expert_rationale: "Safety fallback.",
       alternative_angles: [],
       engine: "Emergency Fallback"
