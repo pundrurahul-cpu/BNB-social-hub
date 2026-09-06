@@ -35,7 +35,7 @@ interface PostsContextType {
   refreshPosts: () => Promise<void>;
 }
 
-const API_URL = 'http://103.155.85.64:5001/api';
+const API_URL = '/api';
 
 const PostsContext = createContext<PostsContextType | undefined>(undefined);
 
