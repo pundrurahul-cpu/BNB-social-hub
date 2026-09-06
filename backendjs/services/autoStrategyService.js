@@ -163,11 +163,6 @@ async function fillStrategicContentInBackground(clientId, strategy, plannedDates
   }
   console.log(`🏁 [AI Background Worker] Finished filling roadmap for Client ${clientId}.`);
 }
-  } catch (err) {
-    console.error("\n❌ [Expert Brain Error]:", err.message);
-    throw err;
-  }
-}
 
 async function generateMarketExpertContent(strategy, blueprint, context, pastTopics) {
   const historyString = pastTopics.length > 0 ? pastTopics.join(', ') : 'None. New roadmap.';
