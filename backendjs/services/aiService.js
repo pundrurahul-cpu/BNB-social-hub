@@ -98,6 +98,11 @@ async function generateJSON(prompt, retryCount = 0) {
       } catch (err) {
         lastErr = err;
         console.warn(`⚠️ [Gemini] ${modelName} failed: ${err.message}`);
+
+        // If it's a safety block or quota issue, we should know
+        if (err.message.includes('429')) {
+           console.error("🚫 Gemini Quota Exceeded (429). Please wait a minute.");
+        }
       }
     }
 
