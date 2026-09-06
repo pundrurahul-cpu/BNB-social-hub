@@ -52,70 +52,117 @@ async function buildMonthlyStrategy(clientId, month, year) {
 
     console.log(`📅 Mapping ${plannedDates.length} Expert Posts...`);
 
-    // --- OPTIMIZATION: Parallel Generation to prevent 504 Timeout ---
-    const generationPromises = plannedDates.map(async (slot, index) => {
-      const blueprint = FUNNEL_BLUEPRINT[index % FUNNEL_BLUEPRINT.length];
+    // 1. CREATE ALL PLACEHOLDERS IMMEDIATELY (To prevent 504 Timeout)
+    const placeholders = [];
+    for (let i = 0; i < plannedDates.length; i++) {
+      const slot = plannedDates[i];
+      const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
 
       let time = strategy.preferred_time || '10:00';
       if (time.split(':').length === 2) time += ':00';
       const scheduledAt = `${slot.date}T${time}Z`;
 
-      // 1. Check if already exists (Skip real posts, allow placeholders)
-      const { data: existing } = await supabase.from('posts')
-        .select('id, is_placeholder')
-        .eq('client_id', String(clientId))
-        .eq('scheduled_at', scheduledAt)
-        .maybeSingle();
+      // Check if already exists
+      const { data: existing } = await supabase.from('posts').select('id, is_placeholder').eq('client_id', String(clientId)).eq('scheduled_at', scheduledAt).maybeSingle();
+      if (existing) continue;
 
-      if (existing && !existing.is_placeholder) return null;
-
-      // 2. Fetch history for uniqueness
-      const { data: historyData } = await supabase.from('posts')
-        .select('topic')
-        .eq('client_id', String(clientId))
-        .limit(50);
-      const pastTopics = (historyData || []).map(h => h.topic).filter(Boolean);
-
-      // 3. Call AI
-      console.log(`🤖 [AI] Processing Post #${index + 1} for ${slot.date}...`);
-      const content = await generateMarketExpertContent(strategy, blueprint, slot.reason, pastTopics);
-
-      const postPayload = {
+      placeholders.push({
         client_id: String(clientId),
         status: 'draft',
         is_placeholder: true,
         scheduled_at: scheduledAt,
         platforms: strategy.platforms || ['facebook', 'instagram'],
         funnel_stage: blueprint.stage,
+        post_type: 'Static', // Default
+        topic: 'STRATEGIC AI ARCHITECTING...',
+        copy_direction: 'AI is currently analyzing market data for this slot...',
+        visual_idea: 'Generating visual concept...',
+        content: 'Finalizing professional copy...',
+        strategic_goal: blueprint.goal,
+        post_no: i + 1,
+        metadata: { framework: blueprint.framework, status: 'processing' }
+      });
+    }
+
+    if (placeholders.length > 0) {
+      const { error: bulkError } = await supabase.from('posts').insert(placeholders);
+      if (bulkError) console.error("❌ Placeholder Bulk Insert Failed:", bulkError.message);
+    }
+
+    // 2. RESPOND TO CLIENT IMMEDIATELY
+    // This stops the "Failed to Fetch" / 504 Timeout error.
+    const result = { success: true, count: placeholders.length, message: "Roadmap created. AI is filling details in background." };
+
+    // 3. TRIGGER BACKGROUND FILLER (Don't 'await' this)
+    process.nextTick(() => {
+      fillStrategicContentInBackground(clientId, strategy, plannedDates);
+    });
+
+    return result;
+  } catch (err) {
+    console.error("\n❌ [Expert Brain Error]:", err.message);
+    throw err;
+  }
+}
+
+/**
+ * BACKGROUND WORKER: Fills the placeholders one by one or in small batches
+ * This prevents rate limits (429) and timeouts.
+ */
+async function fillStrategicContentInBackground(clientId, strategy, plannedDates) {
+  console.log(`🧠 [AI Background Worker] Starting to fill ${plannedDates.length} posts for Client ${clientId}...`);
+
+  for (let i = 0; i < plannedDates.length; i++) {
+    const slot = plannedDates[i];
+    const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
+
+    let time = strategy.preferred_time || '10:00';
+    if (time.split(':').length === 2) time += ':00';
+    const scheduledAt = `${slot.date}T${time}Z`;
+
+    try {
+      // Find the placeholder we just created
+      const { data: post } = await supabase.from('posts')
+        .select('id, metadata')
+        .eq('client_id', String(clientId))
+        .eq('scheduled_at', scheduledAt)
+        .eq('is_placeholder', true)
+        .maybeSingle();
+
+      if (!post || post.metadata?.status === 'completed') continue;
+
+      const { data: historyData } = await supabase.from('posts').select('topic').eq('client_id', String(clientId)).limit(50);
+      const pastTopics = (historyData || []).map(h => h.topic).filter(t => t && !t.includes('ARCHITECTING'));
+
+      console.log(`🤖 [Background] Generating content for Post #${i + 1} (${slot.date})...`);
+      const content = await generateMarketExpertContent(strategy, blueprint, slot.reason, pastTopics);
+
+      await supabase.from('posts').update({
         post_type: content.post_type || 'Static',
         topic: content.topic,
         copy_direction: content.copy_direction,
         visual_idea: content.visual_idea,
         content: content.caption,
-        strategic_goal: blueprint.goal,
-        post_no: index + 1,
         metadata: {
+          ...post.metadata,
           alternative_angles: content.alternative_angles,
           engine: content.engine,
           expert_rationale: content.expert_rationale,
-          framework: blueprint.framework
+          status: 'completed'
         }
-      };
+      }).eq('id', post.id);
 
-      // 4. Upsert to DB
-      if (existing) {
-        return supabase.from('posts').update(postPayload).eq('id', existing.id);
-      } else {
-        return supabase.from('posts').insert([postPayload]);
-      }
-    });
+      console.log(`✅ [Background] Post #${i + 1} filled.`);
 
-    // Run all generations in parallel (limited by AI rate limits naturally)
-    const results = await Promise.all(generationPromises);
-    const successfulCount = results.filter(r => r && !r.error).length;
+      // Small pause to be gentle on the AI API
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-    console.log(`✨ [Market Expert] Successfully processed ${successfulCount} posts.`);
-    return { success: true, count: successfulCount };
+    } catch (err) {
+      console.error(`❌ [Background Worker] Failed on Post #${i + 1}:`, err.message);
+    }
+  }
+  console.log(`🏁 [AI Background Worker] Finished filling roadmap for Client ${clientId}.`);
+}
   } catch (err) {
     console.error("\n❌ [Expert Brain Error]:", err.message);
     throw err;
