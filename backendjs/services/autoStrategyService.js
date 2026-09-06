@@ -52,27 +52,32 @@ async function buildMonthlyStrategy(clientId, month, year) {
 
     console.log(`📅 Mapping ${plannedDates.length} Expert Posts...`);
 
-    for (let i = 0; i < plannedDates.length; i++) {
-      const slot = plannedDates[i];
-      const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
+    // --- OPTIMIZATION: Parallel Generation to prevent 504 Timeout ---
+    const generationPromises = plannedDates.map(async (slot, index) => {
+      const blueprint = FUNNEL_BLUEPRINT[index % FUNNEL_BLUEPRINT.length];
 
       let time = strategy.preferred_time || '10:00';
       if (time.split(':').length === 2) time += ':00';
       const scheduledAt = `${slot.date}T${time}Z`;
 
-      let existingPost = null;
-      const { data: existing } = await supabase.from('posts').select('id, is_placeholder').eq('client_id', String(clientId)).eq('scheduled_at', scheduledAt).maybeSingle();
+      // 1. Check if already exists (Skip real posts, allow placeholders)
+      const { data: existing } = await supabase.from('posts')
+        .select('id, is_placeholder')
+        .eq('client_id', String(clientId))
+        .eq('scheduled_at', scheduledAt)
+        .maybeSingle();
 
-      if (existing) {
-        // If it's a real post (not placeholder), skip it to avoid overwriting user work
-        if (!existing.is_placeholder) continue;
-        existingPost = existing;
-      }
+      if (existing && !existing.is_placeholder) return null;
 
-      const { data: historyData } = await supabase.from('posts').select('topic').eq('client_id', String(clientId)).limit(100);
+      // 2. Fetch history for uniqueness
+      const { data: historyData } = await supabase.from('posts')
+        .select('topic')
+        .eq('client_id', String(clientId))
+        .limit(50);
       const pastTopics = (historyData || []).map(h => h.topic).filter(Boolean);
 
-      // --- GENERATE AS MARKET EXPERT ---
+      // 3. Call AI
+      console.log(`🤖 [AI] Processing Post #${index + 1} for ${slot.date}...`);
       const content = await generateMarketExpertContent(strategy, blueprint, slot.reason, pastTopics);
 
       const postPayload = {
@@ -86,9 +91,9 @@ async function buildMonthlyStrategy(clientId, month, year) {
         topic: content.topic,
         copy_direction: content.copy_direction,
         visual_idea: content.visual_idea,
-        content: content.caption, // This is the "Copy"
+        content: content.caption,
         strategic_goal: blueprint.goal,
-        post_no: i + 1,
+        post_no: index + 1,
         metadata: {
           alternative_angles: content.alternative_angles,
           engine: content.engine,
@@ -97,23 +102,20 @@ async function buildMonthlyStrategy(clientId, month, year) {
         }
       };
 
-      // SAVE TO DB (Upsert if existing placeholder found)
-      let dbError;
-      if (existingPost) {
-        const { error } = await supabase.from('posts').update(postPayload).eq('id', existingPost.id);
-        dbError = error;
+      // 4. Upsert to DB
+      if (existing) {
+        return supabase.from('posts').update(postPayload).eq('id', existing.id);
       } else {
-        const { error } = await supabase.from('posts').insert([postPayload]);
-        dbError = error;
+        return supabase.from('posts').insert([postPayload]);
       }
+    });
 
-      if (dbError) console.error("❌ DB Save Failed:", dbError.message);
-      else console.log(`✨ [Market Expert] ${existingPost ? 'Updated' : 'Created'} Post #${i+1}: ${content.topic}`);
+    // Run all generations in parallel (limited by AI rate limits naturally)
+    const results = await Promise.all(generationPromises);
+    const successfulCount = results.filter(r => r && !r.error).length;
 
-      await new Promise(r => setTimeout(r, 4500));
-    }
-
-    return { success: true, count: plannedDates.length };
+    console.log(`✨ [Market Expert] Successfully processed ${successfulCount} posts.`);
+    return { success: true, count: successfulCount };
   } catch (err) {
     console.error("\n❌ [Expert Brain Error]:", err.message);
     throw err;
