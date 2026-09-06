@@ -1,8 +1,8 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJSON } = require('./aiService');
 const axios = require('axios');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 const AI_BRAIN_URL = "http://localhost:8001"; // FastAPI Brain
 
 /**
@@ -108,7 +108,6 @@ async function runStrategicAutoPlanner(clientId, month, year) {
 }
 
 async function generateStrategicBrief(strategy, blueprint, context) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const prompt = `
     Role: Senior Marketing Strategist.
     Brand: ${strategy.content_focus} (${strategy.brand_voice}).
@@ -124,8 +123,17 @@ async function generateStrategicBrief(strategy, blueprint, context) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    console.error("AI Generation Failed, using default brief:", err);
+    return {
+      topic: `${blueprint.stage} Update`,
+      copy_direction: "Focus on brand goal: " + blueprint.goal,
+      visual_idea: "Modern professional layout.",
+      caption: `Check out our ${blueprint.stage} update! #Agency #Growth`
+    };
+  }
 }
 
 module.exports = { runStrategicAutoPlanner };

@@ -1,7 +1,7 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const axios = require('axios');
-const { generateLocalContent } = require('./ollamaService');
+const { generateJSON } = require('./aiService');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env'), override: true });
 
 /**
  * STRATEGIC BRAIN V1000.11 - MARKET EXPERT EDITION
@@ -60,8 +60,14 @@ async function buildMonthlyStrategy(clientId, month, year) {
       if (time.split(':').length === 2) time += ':00';
       const scheduledAt = `${slot.date}T${time}Z`;
 
-      const { data: existing } = await supabase.from('posts').select('id').eq('client_id', String(clientId)).eq('scheduled_at', scheduledAt).maybeSingle();
-      if (existing) continue;
+      let existingPost = null;
+      const { data: existing } = await supabase.from('posts').select('id, is_placeholder').eq('client_id', String(clientId)).eq('scheduled_at', scheduledAt).maybeSingle();
+
+      if (existing) {
+        // If it's a real post (not placeholder), skip it to avoid overwriting user work
+        if (!existing.is_placeholder) continue;
+        existingPost = existing;
+      }
 
       const { data: historyData } = await supabase.from('posts').select('topic').eq('client_id', String(clientId)).limit(100);
       const pastTopics = (historyData || []).map(h => h.topic).filter(Boolean);
@@ -69,8 +75,7 @@ async function buildMonthlyStrategy(clientId, month, year) {
       // --- GENERATE AS MARKET EXPERT ---
       const content = await generateMarketExpertContent(strategy, blueprint, slot.reason, pastTopics);
 
-      // SAVE TO DB (Populating all 9 Spreadsheet Components)
-      const { error: insertError } = await supabase.from('posts').insert([{
+      const postPayload = {
         client_id: String(clientId),
         status: 'draft',
         is_placeholder: true,
@@ -90,10 +95,20 @@ async function buildMonthlyStrategy(clientId, month, year) {
           expert_rationale: content.expert_rationale,
           framework: blueprint.framework
         }
-      }]);
+      };
 
-      if (insertError) console.error("❌ DB Save Failed:", insertError.message);
-      else console.log(`✨ [Market Expert] Post #${i+1}: ${content.topic}`);
+      // SAVE TO DB (Upsert if existing placeholder found)
+      let dbError;
+      if (existingPost) {
+        const { error } = await supabase.from('posts').update(postPayload).eq('id', existingPost.id);
+        dbError = error;
+      } else {
+        const { error } = await supabase.from('posts').insert([postPayload]);
+        dbError = error;
+      }
+
+      if (dbError) console.error("❌ DB Save Failed:", dbError.message);
+      else console.log(`✨ [Market Expert] ${existingPost ? 'Updated' : 'Created'} Post #${i+1}: ${content.topic}`);
 
       await new Promise(r => setTimeout(r, 4500));
     }
@@ -143,23 +158,10 @@ async function generateMarketExpertContent(strategy, blueprint, context, pastTop
   `;
 
   try {
-    const localData = await generateLocalContent(prompt);
-    if (localData && (localData.topic || localData.caption)) {
-      return { ...localData, engine: 'Llama 3.2 Specialist' };
-    }
+    const data = await generateJSON(prompt);
+    return data;
   } catch (err) {
-    console.log("⚠️ Local AI offline, using Cloud Architect...");
-  }
-
-  const rawKey = (process.env.GEMINI_API_KEY || "").replace(/['"\r\n]/g, '').trim().split(' ')[0];
-  const genAI = new GoogleGenerativeAI(rawKey);
-
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(prompt);
-    const data = JSON.parse(result.response.text().replace(/```json|```/g, "").trim());
-    return { ...data, engine: 'Gemini Expert' };
-  } catch (err) {
+    console.error("❌ Cloud Generation Failed, using Emergency Fallback:", err.message);
     return {
       post_type: "Static",
       topic: "Brand Performance Post",
@@ -168,7 +170,7 @@ async function generateMarketExpertContent(strategy, blueprint, context, pastTop
       caption: "Something great is coming. Stay tuned!",
       expert_rationale: "Safety fallback.",
       alternative_angles: [],
-      engine: "Fallback"
+      engine: "Emergency Fallback"
     };
   }
 }

@@ -1,8 +1,7 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJSON } = require('./aiService');
 const axios = require('axios');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const AI_BRAIN_URL = "http://localhost:8001"; // Your FastAPI URL
 
 /**
@@ -104,8 +103,6 @@ async function buildStrategicAgencyCalendar(clientId, month, year) {
 }
 
 async function generateStrategicBrief(strategy, blueprint, context, history) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     Role: Content Strategist for ${strategy.content_focus} brand.
     Voice: ${strategy.brand_voice}. Funnel: ${blueprint.stage}. Goal: ${blueprint.goal}.
@@ -122,8 +119,16 @@ async function generateStrategicBrief(strategy, blueprint, context, history) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    return {
+      topic: `Strategic Update: ${blueprint.goal}`,
+      copy_direction: "Maintain professional branding.",
+      visual_idea: "Modern professional visual.",
+      caption: "Our expert team is here to help you grow."
+    };
+  }
 }
 
 module.exports = { buildStrategicAgencyCalendar };

@@ -1,8 +1,7 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJSON } = require('./aiService');
 const axios = require('axios'); // To talk to FastAPI
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const AI_BRAIN_URL = "http://localhost:8001"; // Your FastAPI URL
 
 // Funnel stages rotation model from your spreadsheet
@@ -96,7 +95,6 @@ async function buildMonthlyStrategicPlan(clientId, month, year) {
 }
 
 async function generateStrategicBrief(strategy, stage, context, pastTopics) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const prompt = `
     Role: Senior Marketing Strategist. Brand: ${strategy.content_focus}. Funnel Stage: ${stage}. Context: ${context}.
     CRITICAL: Ensure the topic is 100% unique. Do NOT repeat these topics: [${pastTopics}].
@@ -108,8 +106,16 @@ async function generateStrategicBrief(strategy, stage, context, pastTopics) {
       "caption": "Post caption with hashtags"
     }
   `;
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    return {
+      topic: `Expert Update: ${stage}`,
+      copy_direction: "Standard brand message.",
+      visual_idea: "Modern professional visual.",
+      caption: "We are committed to delivering excellence."
+    };
+  }
 }
 
 module.exports = { buildMonthlyStrategicPlan };

@@ -1,7 +1,7 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJSON } = require('./aiService');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 
 /**
  * AI Content Planner: Generates unique post ideas and slots them into the calendar.
@@ -117,8 +117,6 @@ async function generateMonthlySchedule(clientId, month, year) {
  */
 async function generateUniqueIdea(strategy, context) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
     // Fetch last few ideas to avoid repetition
     const { data: recentPosts } = await supabase
       .from('posts')
@@ -151,17 +149,7 @@ async function generateUniqueIdea(strategy, context) {
       }
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text().trim();
-
-    // Attempt to parse JSON
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-
-    throw new Error('Could not parse AI response');
+    return await generateJSON(prompt);
   } catch (error) {
     console.error('AI Idea Gen Error:', error.message);
     return {

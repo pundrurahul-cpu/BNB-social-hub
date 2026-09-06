@@ -1,7 +1,7 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJSON } = require('./aiService');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 
 // Funnel stages sequence from your spreadsheet
 const STRATEGIC_SEQUENCE = [
@@ -82,8 +82,6 @@ async function generateMonthlySchedule(clientId, month, year) {
 }
 
 async function brainstormStrategicContent(profile, blueprint, history) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     Role: Expert Content Strategist
     Client: ${profile.industry} (${profile.brand_voice})
@@ -104,9 +102,17 @@ async function brainstormStrategicContent(profile, blueprint, history) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  const jsonMatch = result.response.text().match(/\{[\s\S]*\}/);
-  return JSON.parse(jsonMatch[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    console.error("AI Generation Failed, using default brief:", err);
+    return {
+      topic: `${blueprint.stage} Strategy`,
+      copy_direction: "Focus on core audience: " + profile.target_audience,
+      visual_idea: "High-end social media visual.",
+      caption: `We're excited to share our ${blueprint.stage} update! #Agency #Insights`
+    };
+  }
 }
 
 module.exports = { generateMonthlySchedule };

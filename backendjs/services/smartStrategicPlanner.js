@@ -1,7 +1,5 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const { generateJSON } = require('./aiService');
 
 /**
  * THE AGENCY STRATEGY MODEL
@@ -57,32 +55,51 @@ async function planStrategicMonth(clientId, month, year) {
       const blueprint = FUNNEL_SEQUENCE[i % FUNNEL_SEQUENCE.length];
       const scheduledAt = `${slot.date}T${strategy.preferred_time}`;
 
+      let existingPost = null;
+      const { data: existing } = await supabase.from('posts').select('id, is_placeholder').eq('client_id', clientId).eq('scheduled_at', scheduledAt).maybeSingle();
+      if (existing) {
+        if (!existing.is_placeholder) continue;
+        existingPost = existing;
+      }
+
       // Check for repetition (Last 20 topics)
-      const { data: history } = await supabase.from('posts').select('strategic_topic').eq('client_id', clientId).limit(20);
-      const pastTopics = history?.map(h => h.strategic_topic).join(', ') || 'None';
+      const { data: history } = await supabase.from('posts').select('topic').eq('client_id', clientId).limit(20);
+      const pastTopics = history?.map(h => h.topic).join(', ') || 'None';
 
       console.log(`🤖 AI Generating: ${blueprint.stage} (${blueprint.type}) for ${slot.date}`);
-      const aiContent = await generateBrief(strategy, blueprint, slot.reason, pastTopics);
 
-      // 4. Create Ghost Post Placeholder for Designers
-      await supabase.from('posts').insert([{
-        client_id: clientId,
-        status: 'draft',
-        is_placeholder: true,
-        scheduled_at: scheduledAt,
-        platforms: strategy.platforms,
-        funnel_stage: blueprint.stage,
-        post_type: blueprint.type,
-        strategic_topic: aiContent.topic,
-        copy_direction: aiContent.copy_direction,
-        visual_idea: aiContent.visual_idea,
-        content: aiContent.caption,
-        metadata: {
-          visual_prompt: aiContent.visual_idea,
-          goal: blueprint.goal,
-          automation_ver: 'SmartScheduler_v5'
+      try {
+        const aiContent = await generateBrief(strategy, blueprint, slot.reason, pastTopics);
+
+        const postPayload = {
+          client_id: clientId,
+          status: 'draft',
+          is_placeholder: true,
+          scheduled_at: scheduledAt,
+          platforms: strategy.platforms,
+          funnel_stage: blueprint.stage,
+          post_type: blueprint.type,
+          topic: aiContent.topic,
+          copy_direction: aiContent.copy_direction,
+          visual_idea: aiContent.visual_idea,
+          content: aiContent.caption,
+          metadata: {
+            visual_prompt: aiContent.visual_idea,
+            goal: blueprint.goal,
+            automation_ver: 'SmartScheduler_v5',
+            engine: aiContent.engine
+          }
+        };
+
+        // 4. Create/Update Ghost Post Placeholder for Designers
+        if (existingPost) {
+          await supabase.from('posts').update(postPayload).eq('id', existingPost.id);
+        } else {
+          await supabase.from('posts').insert([postPayload]);
         }
-      }]);
+      } catch (genErr) {
+        console.error(`⚠️ Failed to generate content for ${slot.date}:`, genErr.message);
+      }
     }
 
     return { success: true, count: plannedSlots.length };
@@ -93,8 +110,6 @@ async function planStrategicMonth(clientId, month, year) {
 }
 
 async function generateBrief(strategy, blueprint, context, history) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     Role: Content Strategist for ${strategy.content_focus} brand.
     Stage: ${blueprint.stage} | Type: ${blueprint.type} | Goal: ${blueprint.goal}
@@ -111,8 +126,9 @@ async function generateBrief(strategy, blueprint, context, history) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  return await generateJSON(prompt);
 }
+
+module.exports = { planStrategicMonth };
 
 module.exports = { planStrategicMonth };

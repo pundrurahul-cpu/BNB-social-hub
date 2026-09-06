@@ -1,8 +1,8 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJSON } = require('./aiService');
 const axios = require('axios');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 const FASTAPI_URL = "http://localhost:8001";
 
 /**
@@ -91,8 +91,6 @@ async function planMonthlyStrategy(clientId, month, year) {
 }
 
 async function generateAIBrief(strategy, stage, context) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   // Get history for uniqueness check
   const { data: history } = await supabase.from('posts').select('topic').eq('client_id', strategy.client_id).limit(15);
   const pastTopics = history?.map(h => h.topic).join(', ') || 'None';
@@ -103,8 +101,17 @@ async function generateAIBrief(strategy, stage, context) {
     Return ONLY JSON: { "topic": "...", "copy_direction": "...", "visual_idea": "...", "caption": "..." }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    console.error("AI Generation Failed, using default brief:", err);
+    return {
+      topic: `${stage} Post`,
+      copy_direction: "Focus on brand values.",
+      visual_idea: "Modern professional layout.",
+      caption: `Check out our ${stage} update! #Agency #Growth`
+    };
+  }
 }
 
 module.exports = { planMonthlyStrategy };

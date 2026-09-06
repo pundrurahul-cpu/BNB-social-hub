@@ -1,7 +1,5 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const { generateJSON } = require('./aiService');
 
 /**
  * STRATEGY BLUEPRINT: Based on your spreadsheet model
@@ -99,8 +97,6 @@ async function generateMonthlyAutoSchedule(clientId, month, year) {
 }
 
 async function brainstormStrategicContent(strategy, task, context, pastTopics) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     Role: Content Strategist for ${strategy.content_focus} brand.
     Voice: ${strategy.brand_voice}
@@ -119,9 +115,16 @@ async function brainstormStrategicContent(strategy, task, context, pastTopics) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return JSON.parse(response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    return {
+      topic: `Strategic Update: ${task.goal}`,
+      copy_direction: "Maintain brand consistency.",
+      visual_idea: "Modern professional design.",
+      caption: "Our commitment to excellence continues."
+    };
+  }
 }
 
 module.exports = { generateMonthlyAutoSchedule };

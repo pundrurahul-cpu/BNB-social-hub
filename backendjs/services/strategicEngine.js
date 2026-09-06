@@ -1,7 +1,5 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const { generateJSON } = require('./aiService');
 
 /**
  * THE MAY 2026 STRATEGIC MODEL (Replicated from your spreadsheet)
@@ -91,8 +89,6 @@ async function planMonthlyStrategy(clientId, month, year) {
 }
 
 async function generateStrategicBrief(strategy, blueprint, context) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   // Get history for uniqueness check
   const { data: history } = await supabase.from('posts').select('topic').eq('client_id', strategy.client_id).limit(20);
   const pastTopics = history?.map(h => h.topic).join(', ') || 'None';
@@ -113,8 +109,18 @@ async function generateStrategicBrief(strategy, blueprint, context) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    const aiBrief = await generateJSON(prompt);
+    return aiBrief;
+  } catch (err) {
+    console.error("Strategic Brief AI Error:", err.message);
+    return {
+      topic: `Post about ${blueprint.goal}`,
+      copy_direction: "Standard professional update.",
+      visual_idea: "Brand aligned visual.",
+      caption: `We are focused on ${blueprint.goal} today!`
+    };
+  }
 }
 
 module.exports = { planMonthlyStrategy };

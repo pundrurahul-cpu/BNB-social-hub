@@ -1,7 +1,7 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJSON } = require('./aiService');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 
 /**
  * THE AGENCY STRATEGY MODEL
@@ -96,7 +96,6 @@ async function automateClientMonth(clientId, month, year) {
 }
 
 async function generateAIBrief(strategy, task, context, history) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const prompt = `
     Role: Senior Marketing Strategist. Brand: ${strategy.content_focus} (${strategy.brand_voice}).
     Stage: ${task.stage} | Post Type: ${task.type} | Slot: ${context}
@@ -112,8 +111,17 @@ async function generateAIBrief(strategy, task, context, history) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    console.error("AI Generation Failed, using default brief:", err);
+    return {
+      topic: `${task.stage} Strategic Brief`,
+      copy_direction: "Focus on brand message.",
+      visual_idea: "Clean and engaging visual.",
+      caption: `Check out our latest ${task.stage} update! #Strategy #Marketing`
+    };
+  }
 }
 
 module.exports = { automateClientMonth };

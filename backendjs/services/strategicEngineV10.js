@@ -1,9 +1,5 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const axios = require('axios');
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const AI_BRAIN_URL = "http://localhost:8001"; // FastAPI Endpoint
+const { generateJSON } = require('./aiService');
 
 /**
  * Funnel stages rotation model from your spreadsheet
@@ -27,11 +23,11 @@ const STRATEGY_MODEL = [
  * AUTOMATED PLANNER:
  * 1. Analyzes client posting days (Mon, Wed, Fri).
  * 2. Injects Special Occasions (Holidays).
- * 3. Calls FastAPI to ensure 0% repetition.
- * 4. Generates a Referral Image for the Designer.
+ * 3. Calls Cloud AI to ensure 0% repetition and high-quality creative.
+ * 4. Generates a Referral Image brief for the Designer.
  */
 async function buildSmartAgencyPlan(clientId, month, year) {
-  console.log(`🧠 [Strategic Engine] Building plan for Client: ${clientId}...`);
+  console.log(`🧠 [Strategic Engine V10] Building plan for Client: ${clientId}...`);
 
   try {
     // 1. Get Client Profile & Rules
@@ -66,35 +62,50 @@ async function buildSmartAgencyPlan(clientId, month, year) {
       const task = STRATEGY_MODEL[i % STRATEGY_MODEL.length];
       const scheduledAt = `${slot.date}T${strategy.preferred_time}`;
 
-      // Check if already scheduled
-      const { data: exists } = await supabase.from('posts').select('id').eq('client_id', clientId).eq('scheduled_at', scheduledAt).maybeSingle();
-      if (exists) continue;
+      let existingPost = null;
+      const { data: exists } = await supabase.from('posts').select('id, is_placeholder').eq('client_id', clientId).eq('scheduled_at', scheduledAt).maybeSingle();
+      if (exists) {
+        if (!exists.is_placeholder) continue;
+        existingPost = exists;
+      }
 
       // 4. Repetition Check & AI Brainstorming
       const { data: history } = await supabase.from('posts').select('topic').eq('client_id', clientId).limit(20);
       const pastTopics = history?.map(h => h.topic).filter(Boolean) || [];
 
       console.log(`🤖 AI Processing: ${task.stage} for ${slot.date}`);
-      const content = await generateUniqueBrief(strategy, task, slot.reason, pastTopics);
 
-      // 5. Create Ghost Post (Fulfillment Placeholder)
-      await supabase.from('posts').insert([{
-        client_id: clientId,
-        status: 'draft',
-        is_placeholder: true,
-        scheduled_at: scheduledAt,
-        platforms: strategy.platforms,
-        funnel_stage: task.stage,
-        post_type: task.type,
-        topic: content.topic,
-        copy_direction: content.copy_direction,
-        visual_idea: content.visual_idea,
-        content: content.caption,
-        metadata: {
-          visual_prompt: content.visual_idea, // Description for designer
-          automation_id: 'Strategic_V10'
+      try {
+        const content = await generateUniqueBrief(strategy, task, slot.reason, pastTopics);
+
+        const postPayload = {
+          client_id: clientId,
+          status: 'draft',
+          is_placeholder: true,
+          scheduled_at: scheduledAt,
+          platforms: strategy.platforms,
+          funnel_stage: task.stage,
+          post_type: task.type,
+          topic: content.topic,
+          copy_direction: content.copy_direction,
+          visual_idea: content.visual_idea,
+          content: content.caption,
+          metadata: {
+            visual_prompt: content.visual_idea, // Description for designer
+            automation_id: 'Strategic_V10',
+            engine: content.engine
+          }
+        };
+
+        // 5. Create/Update Ghost Post (Fulfillment Placeholder)
+        if (existingPost) {
+          await supabase.from('posts').update(postPayload).eq('id', existingPost.id);
+        } else {
+          await supabase.from('posts').insert([postPayload]);
         }
-      }]);
+      } catch (genErr) {
+        console.error(`⚠️ Content generation failed for ${slot.date}:`, genErr.message);
+      }
     }
 
     return { success: true, count: targetSlots.length };
@@ -105,8 +116,6 @@ async function buildSmartAgencyPlan(clientId, month, year) {
 }
 
 async function generateUniqueBrief(strategy, task, context, history) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     Role: Marketing Strategist. Brand: ${strategy.content_focus} (${strategy.brand_voice}).
     Stage: ${task.stage} | Post Type: ${task.type} | context: ${context}
@@ -122,8 +131,9 @@ async function generateUniqueBrief(strategy, task, context, history) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  return await generateJSON(prompt);
 }
+
+module.exports = { buildSmartAgencyPlan };
 
 module.exports = { buildSmartAgencyPlan };

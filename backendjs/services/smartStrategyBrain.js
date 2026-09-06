@@ -1,7 +1,5 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const { generateJSON } = require('./aiService');
 
 // The Funnel Stages as seen in your spreadsheet
 const STRATEGIC_FUNNEL = [
@@ -92,8 +90,6 @@ async function autoPlanMonth(clientId, targetMonth, targetYear) {
 }
 
 async function generateStrategicPost(strategy, profile, stage, context, history) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     Role: Senior Social Media Strategist
     Client Focus: ${strategy.content_focus}
@@ -114,11 +110,8 @@ async function generateStrategicPost(strategy, profile, stage, context, history)
     }
   `;
 
-  const result = await model.generateContent(prompt);
   try {
-    const text = result.response.text();
-    const cleanJson = text.match(/\{[\s\S]*\}/)[0];
-    return JSON.parse(cleanJson);
+    return await generateJSON(prompt);
   } catch (e) {
     return { topic: `Update: ${context}`, copy_direction: "General branded info", visual_idea: "High quality photo of coffee", draft_caption: "Exciting things coming!" };
   }

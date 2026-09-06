@@ -1,8 +1,8 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJSON } = require('./aiService');
 const axios = require('axios');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 const AI_BRAIN_URL = "http://localhost:8001"; // FastAPI Endpoint
 
 /**
@@ -105,8 +105,6 @@ async function buildSmartAgencyPlan(clientId, month, year) {
 }
 
 async function generateUniqueBrief(strategy, task, context, history) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     Role: Marketing Strategist. Brand: ${strategy.content_focus} (${strategy.brand_voice}).
     Stage: ${task.stage} | Post Type: ${task.type} | context: ${context}
@@ -122,8 +120,17 @@ async function generateUniqueBrief(strategy, task, context, history) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    console.error("AI Generation Failed, using default brief:", err);
+    return {
+      topic: `${task.stage} Unique Brief`,
+      copy_direction: "Focus on brand message.",
+      visual_idea: "Modern professional social graphic.",
+      caption: `Check out our ${task.stage} update! #Agency #Growth`
+    };
+  }
 }
 
 module.exports = { buildSmartAgencyPlan };

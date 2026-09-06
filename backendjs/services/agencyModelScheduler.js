@@ -1,7 +1,5 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const { generateJSON } = require('./aiService');
 
 /**
  * THE AGENCY FUNNEL SEQUENCE (Replicated from your spreadsheet)
@@ -92,8 +90,6 @@ async function generateAgencyMonthlyPlan(clientId, month, year) {
 }
 
 async function generateStrategicBrief(strategy, blueprint, context) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   // Get history for uniqueness check
   const { data: history } = await supabase.from('posts').select('topic').eq('client_id', strategy.client_id).limit(20);
   const pastTopics = history?.map(h => h.topic).join(', ') || 'None';
@@ -114,8 +110,17 @@ async function generateStrategicBrief(strategy, blueprint, context) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    console.error("AI Generation Failed, using default brief:", err);
+    return {
+      topic: `${blueprint.stage} Post`,
+      copy_direction: "Focus on brand values.",
+      visual_idea: "Modern professional layout.",
+      caption: `Check out our ${blueprint.stage} update! #Agency #Growth`
+    };
+  }
 }
 
 module.exports = { generateAgencyMonthlyPlan };

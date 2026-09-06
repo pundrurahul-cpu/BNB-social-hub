@@ -1,7 +1,5 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const { generateJSON } = require('./aiService');
 
 /**
  * THE AGENCY MODEL: Replicates the 12-post sequence from your spreadsheet.
@@ -93,8 +91,6 @@ async function automateStrategicCalendar(clientId, month, year) {
 }
 
 async function generateStrategicBrief(rules, blueprint, context, history) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     Role: Content Strategist for ${rules.industry_focus}. Brand Voice: ${rules.brand_voice}.
     Context: ${context} | Stage: ${blueprint.stage} | Type: ${blueprint.type} | Goal: ${blueprint.goal}
@@ -110,8 +106,16 @@ async function generateStrategicBrief(rules, blueprint, context, history) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    return {
+      topic: `Strategic Post: ${blueprint.goal}`,
+      copy_direction: "Standard brand message.",
+      visual_idea: "Modern professional design.",
+      caption: "We are committed to delivering results."
+    };
+  }
 }
 
 module.exports = { automateStrategicCalendar };

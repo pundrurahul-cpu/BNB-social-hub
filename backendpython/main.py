@@ -8,7 +8,12 @@ from sentence_transformers import SentenceTransformer, util
 
 # Load credentials from .env
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+raw_key = os.getenv("OPENAI_API_KEY")
+if raw_key:
+    # Clean the key: remove quotes, whitespace, and take the first part if multiple keys exist
+    openai.api_key = raw_key.replace("'", "").replace('"', "").strip().split()[0]
+else:
+    openai.api_key = None
 
 app = FastAPI(title="BNB Strategic AI Brain")
 

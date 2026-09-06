@@ -12,7 +12,11 @@ load_dotenv(dotenv_path="../../../.env")
 app = FastAPI()
 
 # Set OpenAI Key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+raw_key = os.getenv("OPENAI_API_KEY")
+if raw_key:
+    openai.api_key = raw_key.replace("'", "").replace('"', "").strip().split()[0]
+else:
+    openai.api_key = None
 
 # Load a small, fast model for repetition checking
 # This might take a moment on first run to download the model

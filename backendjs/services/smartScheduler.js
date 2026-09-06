@@ -1,7 +1,7 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJSON } = require('./aiService');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 
 // The exact sequence from your spreadsheet
 const STRATEGY_MODEL = [
@@ -96,8 +96,6 @@ async function generateSmartSchedule(clientId, month, year) {
 }
 
 async function generateStrategicIdea(strategy, blueprint, context) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     Context: ${context} post for ${strategy.content_focus}.
     Funnel Stage: ${blueprint.stage}
@@ -114,8 +112,17 @@ async function generateStrategicIdea(strategy, blueprint, context) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    console.error("AI Generation Failed, using default brief:", err);
+    return {
+      topic: `${blueprint.stage} Idea`,
+      copy_direction: "Focus on brand goal: " + blueprint.goal,
+      visual_idea: "High-quality professional layout.",
+      caption: `Discover our latest ${blueprint.stage} content! #Brand #Strategy`
+    };
+  }
 }
 
 module.exports = { generateSmartSchedule };

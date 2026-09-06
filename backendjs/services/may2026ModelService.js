@@ -1,7 +1,5 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const { generateJSON } = require('./aiService');
 
 /**
  * THE MAY 2026 STRATEGIC FUNNEL SEQUENCE
@@ -104,8 +102,6 @@ async function generateMayModelSchedule(clientId, month, year) {
 }
 
 async function generateStrategicBrief(strategy, blueprint, context, history) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     You are an Expert Agency Content Strategist.
     Client: ${strategy.content_focus}
@@ -126,8 +122,16 @@ async function generateStrategicBrief(strategy, blueprint, context, history) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    return {
+      topic: "Branded Content",
+      copy_direction: "Standard brand message.",
+      visual_idea: "Modern professional visual.",
+      caption: "Check out our latest updates!"
+    };
+  }
 }
 
 module.exports = { generateMayModelSchedule };

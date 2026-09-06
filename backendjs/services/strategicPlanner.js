@@ -1,8 +1,8 @@
 const supabase = require('../supabaseClient');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { generateJSON } = require('./aiService');
 const axios = require('axios');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 const AI_BRAIN_URL = "http://localhost:8001"; // FastAPI URL
 
 // The 12-Post Strategic Funnel from your spreadsheet
@@ -93,8 +93,6 @@ async function planStrategicMonth(clientId, month, year) {
 }
 
 async function generateStrategicContent(strategy, blueprint, context, history) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const prompt = `
     You are a Senior Content Strategist for an agency.
     Industry: ${strategy.content_focus}
@@ -114,8 +112,17 @@ async function generateStrategicContent(strategy, blueprint, context, history) {
     }
   `;
 
-  const result = await model.generateContent(prompt);
-  return JSON.parse(result.response.text().match(/\{[\s\S]*\}/)[0]);
+  try {
+    return await generateJSON(prompt);
+  } catch (err) {
+    console.error("AI Generation Failed, using default brief:", err);
+    return {
+      topic: `${blueprint.stage} Strategic Update`,
+      copy_direction: "Focus on goal: " + blueprint.goal,
+      visual_idea: "Modern professional layout.",
+      caption: `We're excited to share our latest ${blueprint.stage} update! #Agency #Growth`
+    };
+  }
 }
 
 module.exports = { planStrategicMonth };

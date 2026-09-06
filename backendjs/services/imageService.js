@@ -6,7 +6,8 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env'), override: t
 
 function cleanKey(val) {
   if (!val) return null;
-  return val.replace(/['"\r\n]/g, '').trim().split(' ')[0];
+  // Standardized key cleaning for OpenAI/Gemini
+  return val.replace(/['"\r\n]/g, '').trim().split(/\s+/)[0];
 }
 
 const openai = new OpenAI({
