@@ -131,7 +131,7 @@ async function generateText(prompt, retryCount = 0) {
   }
 
   if (genAI) {
-    const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"];
+    const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-8b"];
     for (const modelName of modelsToTry) {
       try {
         console.log(`☁️ [Gemini] Attempting Text Gen with ${modelName}...`);
@@ -155,7 +155,7 @@ async function enhanceContent(imageBuffer, mimeType, retryCount = 0) {
 
   if (!genAI) throw new Error("No Gemini API key for Vision processing.");
 
-  const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"];
+  const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-8b"];
   const modelName = modelsToTry[retryCount % modelsToTry.length];
 
   try {
