@@ -110,18 +110,17 @@ async function buildMonthlyStrategy(clientId, month, year) {
 async function fillStrategicContentInBackground(clientId, strategy, placeholders) {
   console.log(`🧠 [AI Background Worker] Starting resilient rotation fill for ${placeholders.length} posts...`);
 
-  // 3 Distinct Flash Models to maximize Free Tier throughput
-  const rotationModels = ["gemini-3.6-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+  // Official Stable Flash Models for Free Tier
+  const rotationModels = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-flash"];
 
   for (let i = 0; i < placeholders.length; i++) {
     const placeholder = placeholders[i];
     let success = false;
     let attempts = 0;
 
-    while (!success && attempts < 4) {
-      // Pick a model from the rotation based on post index and current attempt
-      const modelIndex = (i + attempts) % rotationModels.length;
-      const targetModel = rotationModels[modelIndex];
+    while (!success && attempts < 5) {
+      // Pick a model from the rotation
+      const targetModel = rotationModels[(i + attempts) % rotationModels.length];
 
       try {
         const { data: post } = await supabase.from('posts').select('id, metadata, scheduled_at').eq('id', placeholder.id).single();
@@ -156,17 +155,17 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
         console.log(`✅ [Background] Post #${i + 1} completed.`);
         success = true;
 
-        // Wait 12 seconds between successful posts to stay safe
-        await new Promise(resolve => setTimeout(resolve, 12000));
+        // Wait between successful posts to stay safe
+        await new Promise(resolve => setTimeout(resolve, 10000));
 
       } catch (err) {
         attempts++;
         if (err.message === "QUOTA_EXCEEDED" || err.message.includes("429")) {
-          console.warn(`⏳ [Quota Recovery] Rate limit reached. Pausing for 65s before retrying Post #${i + 1}...`);
-          await new Promise(resolve => setTimeout(resolve, 65000));
+          console.warn(`⏳ [Quota Recovery] Rate limit reached. Pausing for 70s before retrying Post #${i + 1}...`);
+          await new Promise(resolve => setTimeout(resolve, 70000));
         } else {
           console.error(`❌ [Worker Error] Post #${i + 1} (Attempt ${attempts}):`, err.message);
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          await new Promise(resolve => setTimeout(resolve, 10000));
         }
       }
     }

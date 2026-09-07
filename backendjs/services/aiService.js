@@ -77,7 +77,7 @@ async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
   // 2. Try Gemini Fallback
   if (genAI) {
     // Optimized list for Free Tier (Flash models have higher RPM)
-    const modelsToTry = forcedModel ? [forcedModel, "gemini-3.6-flash", "gemini-flash-latest"] : ["gemini-3.6-flash", "gemini-flash-latest", "gemini-1.5-flash", "gemini-pro"];
+    const modelsToTry = forcedModel ? [forcedModel, "gemini-1.5-flash", "gemini-1.5-flash-8b"] : ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-pro"];
     let lastErr = null;
 
     for (const modelName of modelsToTry) {
@@ -101,9 +101,11 @@ async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
         lastErr = err;
         console.warn(`⚠️ [Gemini] ${modelName} failed: ${err.message}`);
 
-        // CRITICAL: If we hit a 429, we must STOP and tell the caller to wait
+        // If it's a 429, we propagate it immediately to trigger recovery logic
         if (err.message.includes('429')) {
-           throw new Error("QUOTA_EXCEEDED");
+           const quotaErr = new Error("QUOTA_EXCEEDED");
+           quotaErr.originalMessage = err.message;
+           throw quotaErr;
         }
       }
     }
