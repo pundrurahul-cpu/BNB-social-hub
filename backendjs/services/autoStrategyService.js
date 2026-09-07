@@ -87,10 +87,8 @@ async function buildMonthlyStrategy(clientId, month, year) {
       else insertedData = data || [];
     }
 
-    // Response
     const result = { success: true, count: placeholders.length, message: "Roadmap ready. AI filling details..." };
 
-    // Trigger Background
     if (insertedData.length > 0) {
       setImmediate(() => {
         fillStrategicContentInBackground(clientId, strategy, insertedData);
@@ -105,13 +103,18 @@ async function buildMonthlyStrategy(clientId, month, year) {
 }
 
 /**
- * BACKGROUND WORKER: Reliable Model Rotation with Auto-Quota Recovery
+ * BACKGROUND WORKER: Flash 2.0 & Pro Rotation
  */
 async function fillStrategicContentInBackground(clientId, strategy, placeholders) {
-  console.log(`🧠 [AI Background Worker] Starting resilient rotation fill for ${placeholders.length} posts...`);
+  console.log(`🧠 [AI Background Worker] Starting resilient fill for ${placeholders.length} posts...`);
 
-  // USER REQUESTED MODELS: 2.0 Flash, 1.5 Pro, Flash Lite
-  const rotationModels = ["gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash-8b"];
+  // Mapping requested models to official IDs
+  const rotationModels = [
+    "gemini-2.0-flash-exp",
+    "gemini-1.5-pro",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b"
+  ];
 
   for (let i = 0; i < placeholders.length; i++) {
     const placeholder = placeholders[i];
@@ -119,7 +122,6 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
     let attempts = 0;
 
     while (!success && attempts < 5) {
-      // Pick a model from the rotation
       const targetModel = rotationModels[(i + attempts) % rotationModels.length];
 
       try {
@@ -154,14 +156,12 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
 
         console.log(`✅ [Background] Post #${i + 1} completed.`);
         success = true;
-
-        // Wait between successful posts to stay safe
         await new Promise(resolve => setTimeout(resolve, 10000));
 
       } catch (err) {
         attempts++;
-        if (err.message === "QUOTA_EXCEEDED" || err.message.includes("429")) {
-          console.warn(`⏳ [Quota Recovery] Rate limit reached. Pausing for 70s before retrying Post #${i + 1}...`);
+        if (err.message === "QUOTA_EXCEEDED" || err.originalMessage?.includes("429")) {
+          console.warn(`⏳ [Quota Recovery] Rate limit reached. Pausing for 70s...`);
           await new Promise(resolve => setTimeout(resolve, 70000));
         } else {
           console.error(`❌ [Worker Error] Post #${i + 1} (Attempt ${attempts}):`, err.message);
@@ -170,7 +170,7 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
       }
     }
   }
-  console.log(`🏁 [AI Background Worker] Full roadmap filled successfully.`);
+  console.log(`🏁 [AI Background Worker] Full roadmap completed.`);
 }
 
 async function generateMarketExpertContent(strategy, blueprint, context, pastTopics, forcedModel = null) {
@@ -178,10 +178,9 @@ async function generateMarketExpertContent(strategy, blueprint, context, pastTop
   const prompt = `Role: Senior Strategist. Tone: ${strategy.brand_voice}. Niche: ${strategy.content_focus}. Stage: ${blueprint.stage}. Goal: ${blueprint.goal}. Framework: ${blueprint.framework}. Context: ${context}. Unique Rule: Do not repeat ${historyString}. Output ONLY valid JSON: {"post_type": "...", "topic": "...", "copy_direction": "...", "visual_idea": "...", "caption": "...", "expert_rationale": "...", "alternative_angles": []}`;
 
   try {
-    // Let the error bubble up so the background worker can handle the 429 quota wait
     return await generateJSON(prompt, 0, forcedModel);
   } catch (err) {
-    if (err.message === "QUOTA_EXCEEDED" || err.message.includes("429")) {
+    if (err.message === "QUOTA_EXCEEDED" || err.originalMessage?.includes("429")) {
       throw err;
     }
     return {
