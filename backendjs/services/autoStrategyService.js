@@ -5,7 +5,6 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env'), override: t
 
 /**
  * GLOBAL STRATEGIC BLUEPRINT
- * Moved to top-level so both the Main Brain and Background Worker can access it.
  */
 const FUNNEL_BLUEPRINT = [
   { stage: 'Awareness', goal: 'Pattern Interrupt & Brand Recall', framework: 'Curiosity Loop' },
@@ -19,7 +18,7 @@ const FUNNEL_BLUEPRINT = [
  * STRATEGIC BRAIN V1000.11 - MARKET EXPERT EDITION
  */
 async function buildMonthlyStrategy(clientId, month, year) {
-  console.log(`\n🧠 [V1000 Market Expert] Architecting roadmap for Client: ${clientId}`);
+  console.log(`\n🧠 [V1000 Market Expert] Starting stable roadmap for Client: ${clientId}`);
 
   try {
     const { data: strategy, error: stratError } = await supabase
@@ -29,7 +28,7 @@ async function buildMonthlyStrategy(clientId, month, year) {
       .maybeSingle();
 
     if (stratError) throw stratError;
-    if (!strategy) throw new Error("Strategy config not found. Please save Settings first.");
+    if (!strategy) throw new Error("Strategy config not found.");
 
     const daysInMonth = new Date(year, month, 0).getDate();
     const plannedDates = [];
@@ -52,16 +51,14 @@ async function buildMonthlyStrategy(clientId, month, year) {
       }
     }
 
-    console.log(`📅 Mapping ${plannedDates.length} Expert Posts...`);
+    console.log(`📅 Mapping ${plannedDates.length} Posts...`);
 
-    // 1. CREATE ALL PLACEHOLDERS IMMEDIATELY
     const placeholders = [];
     for (let i = 0; i < plannedDates.length; i++) {
       const slot = plannedDates[i];
       const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
       const scheduledAt = `${slot.date}T${strategy.preferred_time || '10:00:00'}Z`;
 
-      // Check if already exists
       const { data: existing } = await supabase.from('posts').select('id, is_placeholder').eq('client_id', String(clientId)).eq('scheduled_at', scheduledAt).maybeSingle();
       if (existing) continue;
 
@@ -73,10 +70,10 @@ async function buildMonthlyStrategy(clientId, month, year) {
         platforms: strategy.platforms || ['facebook', 'instagram'],
         funnel_stage: blueprint.stage,
         post_type: 'Static',
-        topic: 'STRATEGIC AI ARCHITECTING...',
-        copy_direction: 'AI is currently analyzing market data for this slot...',
+        topic: 'AI STRATEGIST ARCHITECTING...',
+        copy_direction: 'Analyzing market data...',
         visual_idea: 'Generating visual concept...',
-        content: 'Finalizing professional copy...',
+        content: 'Finalizing copy...',
         strategic_goal: blueprint.goal,
         post_no: i + 1,
         metadata: { framework: blueprint.framework, status: 'processing' }
@@ -86,14 +83,14 @@ async function buildMonthlyStrategy(clientId, month, year) {
     let insertedData = [];
     if (placeholders.length > 0) {
       const { data, error: bulkError } = await supabase.from('posts').insert(placeholders).select('id, scheduled_at');
-      if (bulkError) console.error("❌ Placeholder Bulk Insert Failed:", bulkError.message);
+      if (bulkError) console.error("❌ Placeholder Error:", bulkError.message);
       else insertedData = data || [];
     }
 
-    // 2. RESPOND TO CLIENT IMMEDIATELY
-    const result = { success: true, count: placeholders.length, message: "Roadmap created. AI is filling details in background." };
+    // Response
+    const result = { success: true, count: placeholders.length, message: "Roadmap ready. AI filling details..." };
 
-    // 3. TRIGGER BACKGROUND FILLER (Model Rotation Mode)
+    // Trigger Background
     if (insertedData.length > 0) {
       setImmediate(() => {
         fillStrategicContentInBackground(clientId, strategy, insertedData);
@@ -108,22 +105,20 @@ async function buildMonthlyStrategy(clientId, month, year) {
 }
 
 /**
- * BACKGROUND WORKER: Reliable Sequential Processing with Model Rotation
+ * BACKGROUND WORKER: Safe for Free Tier Quotas
  */
 async function fillStrategicContentInBackground(clientId, strategy, placeholders) {
-  console.log(`🧠 [AI Background Worker] Starting rotation fill for ${placeholders.length} posts...`);
-  const rotationModels = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"];
+  console.log(`🧠 [AI Worker] Processing ${placeholders.length} posts...`);
+
+  // High-quota models for Free Tier
+  const safeModels = ["gemini-3.6-flash", "gemini-flash-latest"];
 
   for (let i = 0; i < placeholders.length; i++) {
     const placeholder = placeholders[i];
-    const targetModel = rotationModels[i % rotationModels.length];
+    const targetModel = safeModels[i % safeModels.length];
 
     try {
-      const { data: post } = await supabase.from('posts')
-        .select('id, metadata, funnel_stage, scheduled_at')
-        .eq('id', placeholder.id)
-        .single();
-
+      const { data: post } = await supabase.from('posts').select('id, metadata, scheduled_at').eq('id', placeholder.id).single();
       if (!post || post.metadata?.status === 'completed') continue;
 
       const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
@@ -132,7 +127,7 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
       const { data: historyData } = await supabase.from('posts').select('topic').eq('client_id', String(clientId)).limit(50);
       const pastTopics = (historyData || []).map(h => h.topic).filter(t => t && !t.includes('ARCHITECTING'));
 
-      console.log(`🤖 [Background] Post #${i + 1} (${dateStr}) using ${targetModel}...`);
+      console.log(`🤖 [Post #${i+1}] Using ${targetModel}...`);
       const content = await generateMarketExpertContent(strategy, blueprint, "Growth Pillar Post", pastTopics, targetModel);
 
       await supabase.from('posts').update({
@@ -145,57 +140,36 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
           ...post.metadata,
           alternative_angles: content.alternative_angles,
           engine: content.engine,
-          expert_rationale: content.expert_rationale,
           status: 'completed'
         }
       }).eq('id', post.id);
 
-      console.log(`✅ [Background] Post #${i + 1} completed.`);
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      console.log(`✅ [Post #${i+1}] Done.`);
+
+      // 10 second wait to ensure no 429 errors on Free Tier
+      await new Promise(resolve => setTimeout(resolve, 10000));
 
     } catch (err) {
-      console.error(`❌ [Background Worker] Error on placeholder ${placeholder.id}:`, err.message);
+      console.error(`❌ Worker Error:`, err.message);
     }
   }
-  console.log(`🏁 [AI Background Worker] Roadmap completed for Client ${clientId}.`);
 }
 
 async function generateMarketExpertContent(strategy, blueprint, context, pastTopics, forcedModel = null) {
-  const historyString = pastTopics.length > 0 ? pastTopics.join(', ') : 'None. New roadmap.';
-
-  const prompt = `
-    Role: WORLD-CLASS CREATIVE CONTENT WRITER & SENIOR STRATEGIST.
-    Tone: ${strategy.brand_voice}. Niche: ${strategy.content_focus}.
-    Funnel Stage: ${blueprint.stage} (${blueprint.goal}). Framework: ${blueprint.framework}.
-    Additional Context: ${context}.
-    CRITICAL: YOU MUST BE 100% UNIQUE. DO NOT REPEAT THESE TOPICS: ${historyString}
-
-    Output ONLY valid JSON:
-    {
-      "post_type": "Static Image | Reel",
-      "topic": "Unique Viral Headline",
-      "copy_direction": "Hooks and storytelling angle",
-      "visual_idea": "Cinematic visual description",
-      "caption": "Full high-converting copy with CTA",
-      "expert_rationale": "Behavioral psychology insight",
-      "alternative_angles": ["Angle 1", "Angle 2", "Angle 3"]
-    }
-  `;
+  const historyString = pastTopics.length > 0 ? pastTopics.join(', ') : 'None.';
+  const prompt = `Role: Senior Strategist. Tone: ${strategy.brand_voice}. Niche: ${strategy.content_focus}. Stage: ${blueprint.stage}. Goal: ${blueprint.goal}. Framework: ${blueprint.framework}. Context: ${context}. Unique Rule: Do not repeat ${historyString}. Output ONLY valid JSON: {"post_type": "...", "topic": "...", "copy_direction": "...", "visual_idea": "...", "caption": "...", "expert_rationale": "...", "alternative_angles": []}`;
 
   try {
-    const data = await generateJSON(prompt, 0, forcedModel);
-    return data;
+    return await generateJSON(prompt, 0, forcedModel);
   } catch (err) {
-    console.error("❌ Cloud Generation Failed:", err.message);
     return {
       post_type: "Static",
-      topic: "Strategic Brand Update",
-      copy_direction: "Standard brand authority and reach.",
-      visual_idea: "Clean, professional branding visual.",
-      caption: "Something great is coming. Stay tuned for our latest insights!",
-      expert_rationale: "Safety fallback.",
+      topic: "Brand Insights Update",
+      copy_direction: "Professional authority.",
+      visual_idea: "Modern branding visual.",
+      caption: "Something great is coming! Stay tuned.",
       alternative_angles: [],
-      engine: "Emergency Fallback"
+      engine: "Fallback"
     };
   }
 }
