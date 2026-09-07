@@ -110,8 +110,8 @@ async function buildMonthlyStrategy(clientId, month, year) {
 async function fillStrategicContentInBackground(clientId, strategy, placeholders) {
   console.log(`🧠 [AI Background Worker] Starting resilient rotation fill for ${placeholders.length} posts...`);
 
-  // Official Stable Flash Models for Free Tier
-  const rotationModels = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-flash"];
+  // USER REQUESTED MODELS: 2.0 Flash, 1.5 Pro, Flash Lite
+  const rotationModels = ["gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash-8b"];
 
   for (let i = 0; i < placeholders.length; i++) {
     const placeholder = placeholders[i];
