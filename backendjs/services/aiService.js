@@ -43,8 +43,8 @@ function robustJSONParse(text) {
 }
 
 /**
- * GEMINI PRIMARY ROUTER
- * Prioritizes Flash and Pro models as requested.
+ * GEMINI PRIMARY ROUTER (V4.0)
+ * Prioritizing User-Requested Models: 2.0 Flash, 1.5 Pro, Flash Lite
  */
 async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
   console.log(`🧠 [AI Router] Generating Strategic JSON (Attempt ${retryCount + 1})...`);
@@ -53,9 +53,9 @@ async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
   if (genAI) {
     const modelsToTry = forcedModel ? [forcedModel] : [
       "gemini-2.0-flash-exp",
-      "gemini-1.5-flash",
+      "gemini-1.5-pro",
       "gemini-1.5-flash-8b",
-      "gemini-1.5-pro"
+      "gemini-pro"
     ];
 
     let lastErr = null;
