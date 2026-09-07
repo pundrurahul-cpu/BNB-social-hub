@@ -19,7 +19,7 @@ const FUNNEL_BLUEPRINT = [
  * STRATEGIC BRAIN V1000.11 - MARKET EXPERT EDITION
  */
 async function buildMonthlyStrategy(clientId, month, year) {
-  console.log(`\n🧠 [V1000 Market Expert] Architecting high-converting roadmap for Client: ${clientId}`);
+  console.log(`\n🧠 [V1000 Market Expert] Architecting roadmap for Client: ${clientId}`);
 
   try {
     const { data: strategy, error: stratError } = await supabase
@@ -59,10 +59,7 @@ async function buildMonthlyStrategy(clientId, month, year) {
     for (let i = 0; i < plannedDates.length; i++) {
       const slot = plannedDates[i];
       const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
-
-      let time = strategy.preferred_time || '10:00';
-      if (time.split(':').length === 2) time += ':00';
-      const scheduledAt = `${slot.date}T${time}Z`;
+      const scheduledAt = `${slot.date}T${strategy.preferred_time || '10:00:00'}Z`;
 
       // Check if already exists
       const { data: existing } = await supabase.from('posts').select('id, is_placeholder').eq('client_id', String(clientId)).eq('scheduled_at', scheduledAt).maybeSingle();
@@ -96,7 +93,7 @@ async function buildMonthlyStrategy(clientId, month, year) {
     // 2. RESPOND TO CLIENT IMMEDIATELY
     const result = { success: true, count: placeholders.length, message: "Roadmap created. AI is filling details in background." };
 
-    // 3. TRIGGER BACKGROUND FILLER (Ensuring it starts AFTER the response)
+    // 3. TRIGGER BACKGROUND FILLER (Model Rotation Mode)
     if (insertedData.length > 0) {
       setImmediate(() => {
         fillStrategicContentInBackground(clientId, strategy, insertedData);
@@ -112,12 +109,9 @@ async function buildMonthlyStrategy(clientId, month, year) {
 
 /**
  * BACKGROUND WORKER: Reliable Sequential Processing with Model Rotation
- * Spreads the load across 3 different Gemini models to bypass rate limits.
  */
 async function fillStrategicContentInBackground(clientId, strategy, placeholders) {
   console.log(`🧠 [AI Background Worker] Starting rotation fill for ${placeholders.length} posts...`);
-
-  // Models to rotate through to maximize Free Tier uptime
   const rotationModels = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"];
 
   for (let i = 0; i < placeholders.length; i++) {
@@ -132,16 +126,13 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
 
       if (!post || post.metadata?.status === 'completed') continue;
 
-      // Ensure we have a valid blueprint even if the loop index changes
       const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
-      const dateStr = post.scheduled_at ? post.scheduled_at.split('T')[0] : "Target Date";
+      const dateStr = post.scheduled_at.split('T')[0];
 
       const { data: historyData } = await supabase.from('posts').select('topic').eq('client_id', String(clientId)).limit(50);
       const pastTopics = (historyData || []).map(h => h.topic).filter(t => t && !t.includes('ARCHITECTING'));
 
       console.log(`🤖 [Background] Post #${i + 1} (${dateStr}) using ${targetModel}...`);
-
-      // Pass the targetModel to the router for rotation
       const content = await generateMarketExpertContent(strategy, blueprint, "Growth Pillar Post", pastTopics, targetModel);
 
       await supabase.from('posts').update({
@@ -159,13 +150,11 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
         }
       }).eq('id', post.id);
 
-      console.log(`✅ [Background] Post #${i + 1} (${dateStr}) completed.`);
-
-      // Mandatory wait to respect Gemini Free Tier rate limits (reduced because we switch models)
+      console.log(`✅ [Background] Post #${i + 1} completed.`);
       await new Promise(resolve => setTimeout(resolve, 3000));
 
     } catch (err) {
-      console.error(`❌ [Background Worker] Failed on post ${placeholder.id}:`, err.message);
+      console.error(`❌ [Background Worker] Error on placeholder ${placeholder.id}:`, err.message);
     }
   }
   console.log(`🏁 [AI Background Worker] Roadmap completed for Client ${clientId}.`);
@@ -176,37 +165,28 @@ async function generateMarketExpertContent(strategy, blueprint, context, pastTop
 
   const prompt = `
     Role: WORLD-CLASS CREATIVE CONTENT WRITER & SENIOR STRATEGIST.
-    Tone: ${strategy.brand_voice}.
-    Niche: ${strategy.content_focus}.
-    Funnel Stage: ${blueprint.stage} (${blueprint.goal}).
-    Framework: ${blueprint.framework}.
+    Tone: ${strategy.brand_voice}. Niche: ${strategy.content_focus}.
+    Funnel Stage: ${blueprint.stage} (${blueprint.goal}). Framework: ${blueprint.framework}.
     Additional Context: ${context}.
-
-    TASK:
-    1. post_type: "Static Image" or "Reel".
-    2. topic: A viral-worthy headline.
-    3. copy_direction: Give 3 Hooks and a Storytelling Angle.
-    4. visual_idea: Describe a cinematic visual concept.
-    5. caption: Write the full social media copy with CTA.
-    6. expert_rationale: Psychological trigger explanation.
+    CRITICAL: YOU MUST BE 100% UNIQUE. DO NOT REPEAT THESE TOPICS: ${historyString}
 
     Output ONLY valid JSON:
     {
-      "post_type": "Static | Reel",
+      "post_type": "Static Image | Reel",
       "topic": "Unique Viral Headline",
-      "copy_direction": "Hooks and Angle...",
-      "visual_idea": "Cinematic description...",
-      "caption": "Full copy...",
-      "expert_rationale": "Psychology...",
+      "copy_direction": "Hooks and storytelling angle",
+      "visual_idea": "Cinematic visual description",
+      "caption": "Full high-converting copy with CTA",
+      "expert_rationale": "Behavioral psychology insight",
       "alternative_angles": ["Angle 1", "Angle 2", "Angle 3"]
     }
   `;
 
   try {
-    const data = await generateJSON(prompt);
+    const data = await generateJSON(prompt, 0, forcedModel);
     return data;
   } catch (err) {
-    console.error("❌ Cloud Generation Failed, using Emergency Fallback:", err.message);
+    console.error("❌ Cloud Generation Failed:", err.message);
     return {
       post_type: "Static",
       topic: "Strategic Brand Update",
