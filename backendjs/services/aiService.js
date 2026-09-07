@@ -55,11 +55,11 @@ function robustJSONParse(text) {
 /**
  * Centralized JSON Generation: OpenAI (Primary) -> Gemini (Fallback)
  */
-async function generateJSON(prompt, retryCount = 0) {
+async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
   console.log(`🧠 [AI Router] Generating Strategic JSON (Attempt ${retryCount + 1})...`);
 
-  // 1. Try OpenAI Primary
-  if (openai && retryCount === 0) {
+  // 1. Try OpenAI Primary (only if not forcing a specific Gemini model)
+  if (openai && retryCount === 0 && !forcedModel) {
     try {
       console.log(`🤖 [OpenAI] Using GPT-4o...`);
       const response = await openai.chat.completions.create({
@@ -76,7 +76,8 @@ async function generateJSON(prompt, retryCount = 0) {
 
   // 2. Try Gemini Fallback
   if (genAI) {
-    const modelsToTry = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest", "gemini-pro-latest"];
+    // If a model is forced (Rotation Mode), prioritize it.
+    const modelsToTry = forcedModel ? [forcedModel, "gemini-3.6-flash", "gemini-flash-latest"] : ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest", "gemini-pro-latest"];
     let lastErr = null;
 
     for (const modelName of modelsToTry) {
@@ -110,7 +111,7 @@ async function generateJSON(prompt, retryCount = 0) {
     if (lastErr && lastErr.message.includes('429') && retryCount < 2) {
       console.warn(`⏳ [Gemini] Rate limited. Retrying in 5s...`);
       await sleep(5000);
-      return generateJSON(prompt, retryCount + 1);
+      return generateJSON(prompt, retryCount + 1, forcedModel);
     }
   }
 

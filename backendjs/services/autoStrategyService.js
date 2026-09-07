@@ -111,14 +111,18 @@ async function buildMonthlyStrategy(clientId, month, year) {
 }
 
 /**
- * BACKGROUND WORKER: Reliable Sequential Processing
- * Processing one-by-one ensures the highest reliability for Free Tier keys.
+ * BACKGROUND WORKER: Reliable Sequential Processing with Model Rotation
+ * Spreads the load across 3 different Gemini models to bypass rate limits.
  */
 async function fillStrategicContentInBackground(clientId, strategy, placeholders) {
-  console.log(`🧠 [AI Background Worker] Starting sequential fill for ${placeholders.length} posts...`);
+  console.log(`🧠 [AI Background Worker] Starting rotation fill for ${placeholders.length} posts...`);
+
+  // Models to rotate through to maximize Free Tier uptime
+  const rotationModels = ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest"];
 
   for (let i = 0; i < placeholders.length; i++) {
     const placeholder = placeholders[i];
+    const targetModel = rotationModels[i % rotationModels.length];
 
     try {
       const { data: post } = await supabase.from('posts')
@@ -132,14 +136,13 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
       const blueprint = FUNNEL_BLUEPRINT[i % FUNNEL_BLUEPRINT.length];
       const dateStr = post.scheduled_at ? post.scheduled_at.split('T')[0] : "Target Date";
 
-      const { data: historyData } = await supabase.from('posts')
-        .select('topic')
-        .eq('client_id', String(clientId))
-        .limit(50);
+      const { data: historyData } = await supabase.from('posts').select('topic').eq('client_id', String(clientId)).limit(50);
       const pastTopics = (historyData || []).map(h => h.topic).filter(t => t && !t.includes('ARCHITECTING'));
 
-      console.log(`🤖 [Background] Processing Post #${i + 1} (${dateStr})...`);
-      const content = await generateMarketExpertContent(strategy, blueprint, "Growth Pillar Post", pastTopics);
+      console.log(`🤖 [Background] Post #${i + 1} (${dateStr}) using ${targetModel}...`);
+
+      // Pass the targetModel to the router for rotation
+      const content = await generateMarketExpertContent(strategy, blueprint, "Growth Pillar Post", pastTopics, targetModel);
 
       await supabase.from('posts').update({
         post_type: content.post_type || 'Static',
@@ -158,8 +161,8 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
 
       console.log(`✅ [Background] Post #${i + 1} (${dateStr}) completed.`);
 
-      // Mandatory wait to respect Gemini Free Tier rate limits
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Mandatory wait to respect Gemini Free Tier rate limits (reduced because we switch models)
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
     } catch (err) {
       console.error(`❌ [Background Worker] Failed on post ${placeholder.id}:`, err.message);
@@ -168,7 +171,7 @@ async function fillStrategicContentInBackground(clientId, strategy, placeholders
   console.log(`🏁 [AI Background Worker] Roadmap completed for Client ${clientId}.`);
 }
 
-async function generateMarketExpertContent(strategy, blueprint, context, pastTopics) {
+async function generateMarketExpertContent(strategy, blueprint, context, pastTopics, forcedModel = null) {
   const historyString = pastTopics.length > 0 ? pastTopics.join(', ') : 'None. New roadmap.';
 
   const prompt = `
