@@ -43,19 +43,19 @@ function robustJSONParse(text) {
 }
 
 /**
- * GEMINI PRIMARY ROUTER (V5.0 - Universal Compatibility)
- * Prioritizing 2.0 Flash, 1.5 Pro, and Stable Aliases to prevent 404s.
+ * GEMINI PRIMARY ROUTER (V6.0 - Confirmed Models)
+ * Prioritizing exact models verified by the list-models script.
  */
 async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
   console.log(`🧠 [AI Router] Generating Strategic JSON (Attempt ${retryCount + 1})...`);
 
   if (genAI) {
-    // We use a mix of specific and generic names to ensure success
+    // These models were explicitly confirmed as AVAILABLE in your last terminal output
     const modelsToTry = forcedModel ? [forcedModel] : [
-      "gemini-2.0-flash-exp",
-      "gemini-1.5-pro",
-      "gemini-1.5-flash",
-      "gemini-pro" // This is the "Universal" alias that almost never fails
+      "gemini-3.8-flash",
+      "gemini-3.1-pro-preview",
+      "gemini-3.5-flash",
+      "gemini-pro"
     ];
 
     let lastErr = null;

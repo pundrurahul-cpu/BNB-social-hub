@@ -103,16 +103,16 @@ async function buildMonthlyStrategy(clientId, month, year) {
 }
 
 /**
- * BACKGROUND WORKER: Flash 2.0 & Pro Rotation
+ * BACKGROUND WORKER: Rotation with VERIFIED models
  */
 async function fillStrategicContentInBackground(clientId, strategy, placeholders) {
   console.log(`🧠 [AI Background Worker] Starting resilient fill for ${placeholders.length} posts...`);
 
-  // MODELS Guaranteed to exist: 2.0 Flash, 1.5 Pro, and Generic Pro
+  // Official confirmed models from your server logs
   const rotationModels = [
-    "gemini-2.0-flash-exp",
-    "gemini-1.5-pro",
-    "gemini-pro" // High compatibility
+    "gemini-3.8-flash",
+    "gemini-3.1-pro-preview",
+    "gemini-3.5-flash"
   ];
 
   for (let i = 0; i < placeholders.length; i++) {
