@@ -111,7 +111,7 @@ async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
 
 async function generateText(prompt, retryCount = 0) {
   if (genAI) {
-    const modelsToTry = ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro"];
+    const modelsToTry = ["gemini-3.8-flash", "gemini-3.1-pro-preview", "gemini-pro"];
     for (const modelName of modelsToTry) {
       try {
         console.log(`☁️ [Gemini] Text Gen with ${modelName}...`);
@@ -141,7 +141,7 @@ async function generateText(prompt, retryCount = 0) {
 
 async function enhanceContent(imageBuffer, mimeType, retryCount = 0) {
   if (!genAI) throw new Error("No Gemini API key for Vision processing.");
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
   try {
     const result = await model.generateContent([
@@ -183,10 +183,10 @@ async function suggestRegionalSeeds(country, state, district, industry = "Genera
   }
 }
 
-console.log('\n--- 🚀 BNB CLOUD AI AGENT V4.0 (GEMINI FLASH 2.0 PRIMARY) ---');
-console.log('✅ Primary: Gemini 2.0 Flash / 1.5 Pro Rotation');
+console.log('\n--- 🚀 BNB CLOUD AI AGENT V6.0 (VERIFIED MODELS) ---');
+console.log('✅ Primary: Gemini 3.8 Flash / 3.1 Pro Rotation');
 console.log('✅ Fallback: OpenAI GPT-4o');
-console.log('----------------------------------------------------------\n');
+console.log('---------------------------------------------------\n');
 
 module.exports = {
   generateJSON,
