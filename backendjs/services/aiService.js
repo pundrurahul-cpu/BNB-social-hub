@@ -76,8 +76,8 @@ async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
 
   // 2. Try Gemini Fallback
   if (genAI) {
-    // If a model is forced (Rotation Mode), prioritize it.
-    const modelsToTry = forcedModel ? [forcedModel, "gemini-3.6-flash", "gemini-flash-latest"] : ["gemini-3.6-flash", "gemini-3.1-pro-preview", "gemini-flash-latest", "gemini-pro-latest"];
+    // Optimized list for Free Tier (Flash models have higher RPM)
+    const modelsToTry = forcedModel ? [forcedModel, "gemini-3.6-flash", "gemini-flash-latest"] : ["gemini-3.6-flash", "gemini-flash-latest", "gemini-1.5-flash", "gemini-pro"];
     let lastErr = null;
 
     for (const modelName of modelsToTry) {
@@ -93,25 +93,19 @@ async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
           ]
         });
         const result = await model.generateContent(prompt + "\n\nReturn ONLY valid JSON.");
-        const text = await result.response.text();
+        const response = await result.response;
+        const text = response.text();
         const data = robustJSONParse(text);
         if (data) return { ...data, engine: `Gemini (${modelName})` };
       } catch (err) {
         lastErr = err;
         console.warn(`⚠️ [Gemini] ${modelName} failed: ${err.message}`);
 
-        // If it's a safety block or quota issue, we should know
+        // CRITICAL: If we hit a 429, we must STOP and tell the caller to wait
         if (err.message.includes('429')) {
-           console.error("🚫 Gemini Quota Exceeded (429). Please wait a minute.");
+           throw new Error("QUOTA_EXCEEDED");
         }
       }
-    }
-
-    // If we reach here and had a 429, we should retry the whole function
-    if (lastErr && lastErr.message.includes('429') && retryCount < 2) {
-      console.warn(`⏳ [Gemini] Rate limited. Retrying in 5s...`);
-      await sleep(5000);
-      return generateJSON(prompt, retryCount + 1, forcedModel);
     }
   }
 
