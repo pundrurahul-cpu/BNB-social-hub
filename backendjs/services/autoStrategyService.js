@@ -108,12 +108,11 @@ async function buildMonthlyStrategy(clientId, month, year) {
 async function fillStrategicContentInBackground(clientId, strategy, placeholders) {
   console.log(`🧠 [AI Background Worker] Starting resilient fill for ${placeholders.length} posts...`);
 
-  // Mapping requested models to official IDs
+  // MODELS Guaranteed to exist: 2.0 Flash, 1.5 Pro, and Generic Pro
   const rotationModels = [
     "gemini-2.0-flash-exp",
     "gemini-1.5-pro",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b"
+    "gemini-pro" // High compatibility
   ];
 
   for (let i = 0; i < placeholders.length; i++) {

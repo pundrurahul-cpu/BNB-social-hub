@@ -43,19 +43,19 @@ function robustJSONParse(text) {
 }
 
 /**
- * GEMINI PRIMARY ROUTER (V4.0)
- * Optimized with requested Flash 2.0 and Pro models.
+ * GEMINI PRIMARY ROUTER (V5.0 - Universal Compatibility)
+ * Prioritizing 2.0 Flash, 1.5 Pro, and Stable Aliases to prevent 404s.
  */
 async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
   console.log(`🧠 [AI Router] Generating Strategic JSON (Attempt ${retryCount + 1})...`);
 
   if (genAI) {
-    // Mapping requested names to official API IDs
+    // We use a mix of specific and generic names to ensure success
     const modelsToTry = forcedModel ? [forcedModel] : [
       "gemini-2.0-flash-exp",
       "gemini-1.5-pro",
       "gemini-1.5-flash",
-      "gemini-1.5-flash-8b"
+      "gemini-pro" // This is the "Universal" alias that almost never fails
     ];
 
     let lastErr = null;
@@ -79,7 +79,7 @@ async function generateJSON(prompt, retryCount = 0, forcedModel = null) {
         if (data) return { ...data, engine: `Gemini (${modelName})` };
       } catch (err) {
         lastErr = err;
-        console.warn(`⚠️ [Gemini] ${modelName} attempt failed: ${err.message}`);
+        console.warn(`⚠️ [Gemini] ${modelName} failed: ${err.message}`);
 
         if (err.message.includes('429')) {
            const quotaErr = new Error("QUOTA_EXCEEDED");
