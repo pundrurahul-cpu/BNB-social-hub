@@ -179,8 +179,12 @@ async function generateMarketExpertContent(strategy, blueprint, context, pastTop
   const prompt = `Role: Senior Strategist. Tone: ${strategy.brand_voice}. Niche: ${strategy.content_focus}. Stage: ${blueprint.stage}. Goal: ${blueprint.goal}. Framework: ${blueprint.framework}. Context: ${context}. Unique Rule: Do not repeat ${historyString}. Output ONLY valid JSON: {"post_type": "...", "topic": "...", "copy_direction": "...", "visual_idea": "...", "caption": "...", "expert_rationale": "...", "alternative_angles": []}`;
 
   try {
+    // Let the error bubble up so the background worker can handle the 429 quota wait
     return await generateJSON(prompt, 0, forcedModel);
   } catch (err) {
+    if (err.message === "QUOTA_EXCEEDED" || err.message.includes("429")) {
+      throw err;
+    }
     return {
       post_type: "Static",
       topic: "Brand Insights Update",
